@@ -2,9 +2,9 @@ import kubernetes
 from openshift.dynamic import DynamicClient
 
 from flask import Flask
-app = Flask(__name__)
+application = Flask(__name__)
 
-@app.route("/projects/<project_name>")
+@application.route("/projects/<project_name>")
 def create_project(project_name):
     # "oc login -u acct-req-sa"
     k8s_client = kubernetes.config.new_client_from_config()
@@ -32,7 +32,7 @@ def create_project(project_name):
     # "oc create project <project_name>"
     return "{\"create project\"}"
 
-@app.route("/users/<user_name>")
+@application.route("/users/<user_name>")
 def create_user(user_name):
     # "oc login -u acct-req-sa"
     # "oc create user <user_name>"
@@ -45,7 +45,7 @@ def create_user(user_name):
     resp = v1_services.create(body=user)
     return "{\"create user\"}"
 
-@app.route("/users/<user_name>/projects/<project_name>/roles/<role>")
+@application.route("/users/<user_name>/projects/<project_name>/roles/<role>")
 def map_project(user_name,project_name,role):
     # "oc login -u acct-req-sa"
     # "oc adm policy -n <project_name> add-role-to-user <role> <user_name>"
