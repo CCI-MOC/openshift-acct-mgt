@@ -1,5 +1,4 @@
 setuptools>=18.5
-pip>=18.1
 gunicorn
 Flask
 kubernetes
