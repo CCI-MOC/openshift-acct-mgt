@@ -40,10 +40,10 @@ def create_user(user_name):
     # "oc create useridentitymapping <identity_provider>:<user_name from identity provider> <user_name>"
     k8s_client = kubernetes.config.new_client_from_config()
     dyn_client = DynamicClient(k8s_client)
-    v1_services = dyn_client.resources.get(api_version='v1', kind='User')
+    v1_users = dyn_client.resources.get(api_version='v1', kind='User')
     user = "{\"apiVersion\":\"v1\",\"kind\":\"User\":\"" + user_name + "\",\"identities\":[\"keystone_auth:robbaron@bu.edu\"],\"groups\":null,\"metadata\":{\"name\":\"test\"}}"
          #  { "apiVersion": "user.openshift.io/v1", "groups": null, "identities": [ "keystone_auth:robbaron@bu.edu" ], "kind": "User", "metadata": { "name": "test" } }
-    resp = v1_services.create(body=user)
+    resp = v1_users.create(body=user)
     return "{\"create user\"}"
 
 @application.route("/users/<user_name>/projects/<project_name>/roles/<role>")
