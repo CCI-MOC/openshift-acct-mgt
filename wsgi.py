@@ -2,6 +2,7 @@ import kubernetes
 from openshift.dynamic import DynamicClient
 import logging
 from flask import Flask
+
 application = Flask(__name__)
 
 @application.route("/projects/<project_name>")
@@ -41,10 +42,10 @@ def create_user(user_name):
     k8s_client = kubernetes.config.new_client_from_config()
     dyn_client = DynamicClient(k8s_client)
     v1_users = dyn_client.resources.get(api_version='v1', kind='User')
-    application.logger("Users: ", v1_users);
+    logging.warning("Users: ", v1_users);
     user = "{\"apiVersion\":\"v1\",\"kind\":\"User\":\"" + user_name + "\",\"identities\":[\"keystone_auth:robbaron@bu.edu\"],\"groups\":null,\"metadata\":{\"name\":\"test\"}}"
          #  { "apiVersion": "user.openshift.io/v1", "groups": null, "identities": [ "keystone_auth:robbaron@bu.edu" ], "kind": "User", "metadata": { "name": "test" } }
-    application.logger("Users2: ",user);
+    logging.warning("Users2: ",user);
     resp = v1_users.create(body=user)
     return "{\"create user\"}"
 
@@ -55,6 +56,4 @@ def map_project(user_name,project_name,role):
     return "{\"map\"}"
 
 if __name__ == "__main__":
-    application.logger = logging.getLogger()
-    application.logger.setLevel("info")
     application.run()
