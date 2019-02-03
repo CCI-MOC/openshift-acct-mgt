@@ -55,6 +55,6 @@ def map_project(user_name,project_name,role):
     return "{\"map\"}"
 
 if __name__ == "__main__":
-    application.logger.addHandler(logging.StreamHandler())
+    application.logger = logging.getLogger()
     application.logger.setLevel("info")
     application.run()
