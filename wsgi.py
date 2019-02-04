@@ -47,10 +47,10 @@ def create_user(user_name):
     k8s_client = kubernetes.config.new_client_from_config()
     dyn_client = DynamicClient(k8s_client)
     v1_users = dyn_client.resources.get(api_version='v1', kind='User')
-    application.logger.warning("Users: ", v1_users);
+    application.logger.warning("Users: " + v1_users);
     user = "{\"apiVersion\":\"v1\",\"kind\":\"User\":\"" + user_name + "\",\"identities\":[\"keystone_auth:robbaron@bu.edu\"],\"groups\":null,\"metadata\":{\"name\":\"test\"}}"
          #  { "apiVersion": "user.openshift.io/v1", "groups": null, "identities": [ "keystone_auth:robbaron@bu.edu" ], "kind": "User", "metadata": { "name": "test" } }
-    application.logger.warning("Users2: ",user);
+    application.logger.warning("Users2: " + user);
     resp = v1_users.create(body=user)
     return "{\"create user\"}"
 
