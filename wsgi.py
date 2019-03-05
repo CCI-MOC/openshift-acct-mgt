@@ -57,15 +57,16 @@ def create_user(user_name, full_name=null, identity="SSO_AUTH", id_name=null):
     application.logger.warning("Users2: " + user);
     resp = v1_users.create(body=user)
     token = get_user_token('/kube/config','moc-openshift-acct-req')
-    url='https://k-openshift.osh.massopen.cloud:8443/oapi/v1";
+    url='https://k-openshift.osh.massopen.cloud:8443/oapi/v1/users/"+user_name;
     headers={'Authorizations': 'Bearer '+token }
     payload={ 
-        "apiVersion":"v1",
-        "kind":"User": user_name,
+        "apiVersion":"user.openshift.io/v1",
+        "kind":"User",
         "groups":null,
+        "fullName":full_name
         "metadata":
             {
-            "name":full_name
+            "name":user_name
             }
  
         }
