@@ -5,7 +5,7 @@ import logging
 import requests
 import json
 import re
-from flask import Flask, redirect, url_for, request
+from flask import Flask, redirect, url_for, request, Response
 
 application = Flask(__name__)
 
@@ -58,14 +58,17 @@ def delete_openshift_rolebindings(token, api_url, project_name, user_name, role)
                'Accept': 'application/json',
                'Content-Type': 'application/json'}
     url = 'https://' + api_url + '/oapi/v1/namespaces/' + project_name + '/rolebindings'
-    payload = {"kind": "RoleBinding",
-               "apiVersion": "v1",
-               "metadata":
-                   {"name": role,
-                    "namespace": project_name},
-                "groupNames": "null",
-                "userNames": [user_name],
-                "roleRef": {"name": role}}
+    payload = {
+        "kind": "RoleBinding",
+        "apiVersion": "v1",
+        "metadata": {
+            "name": role,
+            "namespace": project_name
+        },
+        "groupNames": "null",
+        "userNames": [user_name],
+        "roleRef": {"name": role}
+    }
     r = requests.post(url, headers=headers,
                       data=json.dumps(payload), verify=False)
     application.logger.warning("r: " + str(r.status_code))
@@ -79,8 +82,17 @@ def create_openshift_rolebindings(token, api_url, project_name, user_name, role)
     headers = {'Authorization': 'Bearer ' + token,
                'Accept': 'application/json', 'Content-Type': 'application/json'}
     url = 'https://' + api_url + '/oapi/v1/namespaces/' + project_name + '/rolebindings'
-    payload = {"kind": "RoleBinding", "apiVersion": "v1", "metadata": {"name": role,
-                                                                       "namespace": project_name}, "groupNames": None, "userNames": [user_name], "roleRef": {"name": role}}
+    payload = {
+        "kind": "RoleBinding",
+        "apiVersion": "v1",
+        "metadata": {
+            "name": role,
+            "namespace": project_name
+        },
+        "groupNames": None,
+        "userNames": [user_name],
+        "roleRef": {"name": role}
+    }
     r = requests.post(url, headers=headers,
                       data=json.dumps(payload), verify=False)
     application.logger.warning("cr r: " + str(r.status_code))
@@ -107,16 +119,32 @@ def create_rolebindings(project_name, user_name, role):
                 r = create_openshift_rolebindings(
                     token, openshift_url, project_name, user_name, openshift_role)
                 if (r.status_code == 200 or r.status_code == 201):
-                    return "{\"status_code\":\"200\", \"msg\":\"role created\"}"
-                return " rolebindings unable to be set: " + r.text + " " + str(r.status_code)
-            return "{\"status_code\":\"409\", \"msg\":\"msg: role already present\"}"
+                    return Response(
+                        response=json.dumps({"msg":"RoleBinding Created ("+user_name+","+project_name+","+role+")"}),
+                        status=200,
+                        mimetype='application/json'
+                    )
+                return Response(
+                    response=json.dumps({"msg":"Unable to created rolebind ("+user_name+","+project_name+","+role+")"}),
+                    status=400,
+                    mimetype='application/json'
+                    )
+            return Response(
+                response=json.dumps({"msg":"RoleBinding currently exists ("+user_name+","+project_name+","+role+")"}),
+                status=400,
+                mimetype='application/json'
+                )
         # if(request.method='DELETE'):
         #    if(exists_openshift_projectrole(token,api_url,project_name,user_name,role)):
         #        r=create_openshift_projectrole(token,api_url,project_name,username,role)
         #        if (r.status_code!=200 or r.status_code1=201):
         #            return r
         #    return "{\"status_code\":\"200\", \"msg\":\"role deleted\"}"
-    return "{\"status_code\"=\"400\"}"
+    return Response(
+        response=json.dumps({"msg": "Method: '" + request.method + "' Not found"}),
+        status=405,
+        mimetype='application/json'
+        )
 
 
 def exists_openshift_project(token, api_url, project_name):
@@ -160,10 +188,26 @@ def create_project(project_name, user_name=None):
             r = create_openshift_project(
                 token, openshift_url, project_name, user_name)
             if(r.status_code == 200 and r.status_code == 201):
-                return "\"status_code\": \"200\", \"msg\":\"project created\" }"
-            return r.text + str(r.status_code)
-        return "{\"status_code\": \"409\", \"msg\": \"project currently exist: " + project_name + "\"}"
-    return "{\"status_code\": \"405\", \"msg\": \"Method: '" + request.method + "' Not found\" }"
+                return Response(
+                    response=json.dumps({"msg": "project created: " + project_name }),
+                    status=200,
+                    mimetype='application/json'
+                    )
+            return Response(
+                response=json.dumps({"msg": "project unabled to be created: " + project_name }),
+                status=400,
+                mimetype='application/json'
+                )
+        return Response(
+            response=json.dumps({"msg": "project currently exist: " + project_name }),
+            status=400,
+            mimetype='application/json'
+            )
+    return Response(
+        response=json.dumps({"msg": "Method: '" + request.method + "' Not found"}),
+        status=405,
+        mimetype='application/json'
+        )
 
 
 def exists_openshift_user(token, api_url, user_name):
@@ -251,9 +295,7 @@ def create_openshift_useridentitymapping(token, api_url, user_name, id_provider,
 def create_user(user_name, full_name=None, id_provider="sso_auth", id_user=None):
     token = get_user_token('/kube/config', 'moc-openshift-acct-req')
     openshift_url = "k-openshift.osh.massopen.cloud:8443"
-    headers = {'Authorization': 'Bearer ' + token,
-               'Accept': 'application/json', 'Content-Type': 'application/json'}
-    r = None
+    r=None
 
     if(request.method == 'GET'):
         # use case if User doesn't exist, then create
@@ -261,7 +303,11 @@ def create_user(user_name, full_name=None, id_provider="sso_auth", id_user=None)
             r = create_openshift_user(
                 token, openshift_url, user_name, full_name)
             if(r.status_code != 200 and r.status_code != 201):
-                return r.text + str(r.status_code)
+                return Response(
+                    response=json.dumps({"msg": "Unable to create User (" + user_name + ") 1"}),
+                    status=400,
+                    mimetype='application/json'
+                    )
         if(id_user is None):
             id_user = user_name
         # if identity doesn't exist then create
@@ -269,16 +315,31 @@ def create_user(user_name, full_name=None, id_provider="sso_auth", id_user=None)
             r = create_openshift_identity(
                 token, openshift_url, id_provider, id_user)
             if(r.status_code != 200 and r.status_code != 201):
-                return r.text + str(r.status_code)
+                return Response(
+                    response=json.dumps({"msg": "Unable to create identity (" + id_provider + ")"}),
+                    status=400,
+                    mimetype='application/json'
+                    )
         # creates the useridenitymapping
         if(not exists_openshift_useridentitymapping(token, openshift_url, user_name, id_provider, id_user)):
             r = create_openshift_useridentitymapping(
                 token, openshift_url, user_name, id_provider, id_user)
             if(r.status_code != 200 and r.status_code != 201):
-                return r.text + str(r.status_code)
-        return "{\"status_code\": \"200\", \"msg\": \"Created User:" + user_name + " with identity: " + id_provider + ":" + id_user + " \"}", 200
-    return "{\"status_code\": \"405\", \"msg\": \"Method: '" + request.method + "' Not found\" }", 405
-
+                return Response(
+                    response=json.dumps({"msg": "Unable to create user (" + user_name + ")"}),
+                    status=400,
+                    mimetype='application/json'
+                    )
+        return Response(
+            response=json.dumps({"msg": "User Created (" + user_name + ")"}),
+            status=200,
+            mimetype='application/json'
+            )
+    return Response(
+        response=json.dumps({"msg": "Method: '" + request.method + "' Not found"}),
+        status=405,
+        mimetype='application/json'
+        )
 
 @application.route("/users/<user_name>/projects/<project_name>/roles/<role>")
 def map_project(user_name, project_name, role):
