@@ -1,37 +1,67 @@
-# Flask Sample Application
+This is a simple microserver that implements a REST API to manage users and projects on the MOC's
+OpenShift clusters.
 
-This repository provides a sample Python web application implemented using the Flask web framework and hosted using ``gunicorn``. It is intended to be used to demonstrate deployment of Python web applications to OpenShift 3.
+It implements the following functions:
 
-## Implementation Notes
+    1) Create a user.
 
-This sample Python application relies on the support provided by the default S2I builder for deploying a WSGI application using the ``gunicorn`` WSGI server. The requirements which need to be satisfied for this to work are:
+        a) API call:
 
-* The WSGI application code file needs to be named ``wsgi.py``.
-* The WSGI application entry point within the code file needs to be named ``application``.
-* The ``gunicorn`` package must be listed in the ``requirements.txt`` file for ``pip``.
+            get [cluster url]/users/<user-name>
 
-In addition, the ``.s2i/environment`` file has been created to allow environment variables to be set to override the behaviour of the default S2I builder for Python.
+        b) Equivalent command line commands:
 
-* The environment variable ``APP_CONFIG`` has been set to declare the name of the config file for ``gunicorn``.
+            oc create user <user-name>
+            oc create identity sso_auth:<user-name>
+            oc useridentitymapping sso_auth:<user-name> <user-name>
+    
+    2) Create a project.
 
-## Deployment Steps
+        a) API call:
 
-To deploy this sample Python web application from the OpenShift web console, you should select ``python:2.7``, ``python:3.3``, ``python:3.4`` or ``python:latest``, when using _Add to project_. Use of ``python:latest`` is the same as having selected the most up to date Python version available, which at this time is ``python:3.4``.
+            get [cluster url]/projects/<project-name>
 
-The HTTPS URL of this code repository which should be supplied to the _Git Repository URL_ field when using _Add to project_ is:
+        b) Equivalent command line commands:
 
-* https://github.com/OpenShiftDemos/os-sample-python.git
+        oc create project <project-name>
 
-If using the ``oc`` command line tool instead of the OpenShift web console, to deploy this sample Python web application, you can run:
+    3) Add a user to a project with a given role.  Here the role may be one of 'admin', 'member' or 'reader'.  In OpenShift, these roles are 'admin', 'edit', 'view' respectively.
 
-```
-oc new-app https://github.com/OpenShiftDemos/os-sample-python.git
-```
+        a) API call:
 
-In this case, because no language type was specified, OpenShift will determine the language by inspecting the code repository. Because the code repository contains a ``requirements.txt``, it will subsequently be interpreted as including a Python application. When such automatic detection is used, ``python:latest`` will be used.
+            get [cluster url]/users/<user-name>/projects/<project-name>/roles/<admin|member|reader>
 
-If needing to select a specific Python version when using ``oc new-app``, you should instead use the form:
+        b) Equivalent command line commands:
 
-```
-oc new-app python:2.7~https://github.com/OpenShiftDemos/os-sample-python.git
-```
+        oc adm policy -n <project-name> add-role-to-user <admin|edit|view> <user-name>
+
+    4) Delete a user.
+
+        a) API call:
+
+            delete [cluster url]/users/<user-name>
+
+        b) Equivalent command line commands:
+
+            oc delete user <user-name>
+            oc delete identity sso_auth:<user-name>
+
+    5) Delete a project.
+
+        a) API call:
+    
+            delete [cluster url]/projects/<project-name>
+
+        b) Equivalent command line commands:
+
+            oc delete project <project-name>
+
+    6) Remove a role from a user within a project.  Role her is the same as the roles defined in 'Add a user to a project with a role'.
+
+        a) API call:
+        
+            delete [cluster url]/users/<user-name>/projects/<project-name>/roles/<admin|member|reader>   
+        b) Equivalent command line commands:
+    
+            oc adm policy -n <project-name> rm-role-from-user <admin|edit|view> <user-name>
+
