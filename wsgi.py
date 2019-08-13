@@ -69,12 +69,10 @@ def delete_openshift_rolebindings(token, api_url, project_name, user_name, role)
         "userNames": [user_name],
         "roleRef": {"name": role}
     }
-    r = requests.post(url, headers=headers,
+    r = requests.delete(url, headers=headers,
                       data=json.dumps(payload), verify=False)
     application.logger.warning("r: " + str(r.status_code))
     application.logger.warning("r: " + r.text)
-    if (r.status_code == 200 or r.status_code == 201):
-        return "{\"status_code\":\"200\", \"msg\":\"" + role + " role deleted from user " + user_name + " in project " + project_name + " \"}"
     return r
 
 
@@ -100,7 +98,7 @@ def create_openshift_rolebindings(token, api_url, project_name, user_name, role)
     return r
 
 
-@application.route("/users/<user_name>/projects/<project_name>/roles/<role>", methods=['GET'])
+@application.route("/users/<user_name>/projects/<project_name>/roles/<role>", methods=['GET','DELETE'])
 def create_rolebindings(project_name, user_name, role):
     # role can be one of Admin, Member, Reader
     (token, openshift_url) = get_token_and_url()
@@ -120,31 +118,49 @@ def create_rolebindings(project_name, user_name, role):
                     token, openshift_url, project_name, user_name, openshift_role)
                 if (r.status_code == 200 or r.status_code == 201):
                     return Response(
-                        response=json.dumps({"msg":"RoleBinding Created ("+user_name+","+project_name+","+role+")"}),
+                        response=json.dumps({"msg":"Role binding created ("+user_name+","+project_name+","+role+")"}),
                         status=200,
                         mimetype='application/json'
                     )
                 return Response(
-                    response=json.dumps({"msg":"Unable to created rolebind ("+user_name+","+project_name+","+role+")"}),
+                    response=json.dumps({"msg":"Unable to created role binding ("+user_name+","+project_name+","+role+")"}),
                     status=400,
                     mimetype='application/json'
                     )
             return Response(
-                response=json.dumps({"msg":"RoleBinding currently exists ("+user_name+","+project_name+","+role+")"}),
+                response=json.dumps({"msg":"Role binding currently exists ("+user_name+","+project_name+","+role+")"}),
                 status=400,
                 mimetype='application/json'
                 )
-        # if(request.method='DELETE'):
-        #    if(exists_openshift_projectrole(token,api_url,project_name,user_name,role)):
-        #        r=create_openshift_projectrole(token,api_url,project_name,username,role)
-        #        if (r.status_code!=200 or r.status_code1=201):
-        #            return r
-        #    return "{\"status_code\":\"200\", \"msg\":\"role deleted\"}"
+        elif(request.method='DELETE'):
+            if(exists_openshift_projectrole(token,api_url,project_name,user_name,role)):
+                r=create_openshift_projectrole(token,api_url,project_name,username,role)
+                if (r.status_code==200 or r.status_code1==201):
+                    return Response(
+                        response=json.dumps({"msg":"Role binding created ("+user_name+","+project_name+","+role+")"}),
+                        status=200,
+                        mimetype='application/json'
+                        )
+                return Response(
+                    response=json.dumps({"msg":"Unable to delete role binding ("+user_name+","+project_name+","+role+")"}),
+                    status=400,
+                    mimetype='application/json'
+                    )
+            return Response(
+                response=json.dumps({"msg":"Role binding currently does not exists ( ! "+user_name+","+project_name+","+role+")"}),
+                status=400,
+                mimetype='application/json'
+                )
+        return Response(
+            response=json.dumps({"msg": "Method: '" + request.method + "' Not found"}),
+            status=405,
+            mimetype='application/json'
+            )
     return Response(
-        response=json.dumps({"msg": "Method: '" + request.method + "' Not found"}),
-        status=405,
+        response=json.dumps({"msg": "Invalid parameters/syntax"}),
+        status=400,
         mimetype='application/json'
-        )
+        )        
 
 
 def exists_openshift_project(token, api_url, project_name):
@@ -157,6 +173,20 @@ def exists_openshift_project(token, api_url, project_name):
     if(r.status_code == 200 or r.status_code == 201):
         return True
     return False
+
+#try just using the projet name
+def delete_openshift_project(token, api_url, project_name, user_name):
+    # check project_name
+    headers = {'Authorization': 'Bearer ' + token,
+               'Accept': 'application/json', 'Content-Type': 'application/json'}
+    url = 'https://' + api_url + '/oapi/v1/projects'
+    payload = {"kind": "Project", "apiVersion": "v1", "metadata": {"name": project_name, "annotations": {
+        "openshift.io/display-name": project_name, "openshift.io/requester": user_name}}}
+    r = requests.delete(url, headers=headers,
+                      data=json.dumps(payload), verify=False)
+    application.logger.warning("r: " + str(r.status_code))
+    application.logger.warning("r: " + r.text)
+    return r
 
 
 def create_openshift_project(token, api_url, project_name, user_name):
@@ -173,8 +203,8 @@ def create_openshift_project(token, api_url, project_name, user_name):
     return r
 
 
-@application.route("/projects/<project_name>", methods=['GET'])
-@application.route("/projects/<project_name>/owner/<user_name>", methods=['GET'])
+@application.route("/projects/<project_name>", methods=['GET','DELETE'])
+@application.route("/projects/<project_name>/owner/<user_name>", methods=['GET','DELETE'])
 def create_project(project_name, user_name=None):
     (token, openshift_url) = get_token_and_url()
     if(request.method == 'GET'):
@@ -203,6 +233,8 @@ def create_project(project_name, user_name=None):
             status=400,
             mimetype='application/json'
             )
+    elif(request.method=='DELETE'):
+
     return Response(
         response=json.dumps({"msg": "Method: '" + request.method + "' Not found"}),
         status=405,
@@ -234,6 +266,19 @@ def create_openshift_user(token, api_url, user_name, full_name):
     application.logger.warning("r: " + r.text)
     return r
 
+# try eliminating the full_name
+def delete_openshift_user(token, api_url, user_name, full_name):
+    headers = {'Authorization': 'Bearer ' + token,
+               'Accept': 'application/json', 'Content-Type': 'application/json'}
+    url = 'https://' + api_url + '/oapi/v1/users'
+    payload = {"kind": "User", "apiVersion": "v1",
+               "metadata": {"name": user_name}, "fullName": full_name}
+    r = requests.delete(url, headers=headers,
+                      data=json.dumps(payload), verify=False)
+    application.logger.warning("r: " + str(r.status_code))
+    application.logger.warning("r: " + r.text)
+    return r
+
 
 def exists_openshift_identity(token, api_url, id_provider, id_user):
     headers = {'Authorization': 'Bearer ' + token,
@@ -245,6 +290,19 @@ def exists_openshift_identity(token, api_url, id_provider, id_user):
     if(r.status_code == 200 or r.status_code == 201):
         return True
     return False
+
+
+def delete_openshift_identity(token, api_url, id_provider, id_user):
+    headers = {'Authorization': 'Bearer ' + token,
+               'Accept': 'application/json', 'Content-Type': 'application/json'}
+    url = 'https://' + api_url + '/oapi/v1/identities'
+    payload = {"kind": "Identity", "apiVersion": "v1",
+               "providerName": id_provider, "providerUserName": id_user}
+    r = requests.delete(url, headers=headers,
+                      data=json.dumps(payload), verify=False)
+    application.logger.warning("r: " + str(r.status_code))
+    application.logger.warning("r: " + r.text)
+    return r
 
 
 def create_openshift_identity(token, api_url, id_provider, id_user):
@@ -289,9 +347,9 @@ def create_openshift_useridentitymapping(token, api_url, user_name, id_provider,
     return r
 
 
-@application.route("/users/<user_name>", methods=['GET'])
-@application.route("/users/<user_name>/fullname/<full_name>", methods=['GET'])
-@application.route("/users/<user_name>/fullname/<full_name>/<identity>/<id_user>", methods=['GET'])
+@application.route("/users/<user_name>", methods=['GET','DELETE'])
+@application.route("/users/<user_name>/fullname/<full_name>", methods=['GET','DELETE'])
+@application.route("/users/<user_name>/fullname/<full_name>/<identity>/<id_user>", methods=['GET','DELETE'])
 def create_user(user_name, full_name=None, id_provider="sso_auth", id_user=None):
     token = get_user_token('/kube/config', 'moc-openshift-acct-req')
     openshift_url = "k-openshift.osh.massopen.cloud:8443"
@@ -335,6 +393,45 @@ def create_user(user_name, full_name=None, id_provider="sso_auth", id_user=None)
             status=200,
             mimetype='application/json'
             )
+    elif(request.method == 'DELETE'):
+         # use case if User exists then delete
+        if(exists_openshift_user(token, openshift_url, user_name)):
+            r = delete_openshift_user(
+                token, openshift_url, user_name, full_name)
+            if(r.status_code != 200 and r.status_code != 201):
+                return Response(
+                    response=json.dumps({"msg": "Unable to delete User (" + user_name + ") 1"}),
+                    status=400,
+                    mimetype='application/json'
+                    )
+        if(id_user is None):
+            id_user = user_name
+        # if identity doesn't exist then create
+        if(exists_openshift_identity(token, openshift_url, id_provider, id_user)):
+            r = delete_openshift_identity(
+                token, openshift_url, id_provider, id_user)
+            if(r.status_code != 200 and r.status_code != 201):
+                return Response(
+                    response=json.dumps({"msg": "Unable to delete identity (" + id_provider + ")"}),
+                    status=400,
+                    mimetype='application/json'
+                    )
+        # creates the useridenitymapping
+        #if(not exists_openshift_useridentitymapping(token, openshift_url, user_name, id_provider, id_user)):
+        #    r = create_openshift_useridentitymapping(
+        #        token, openshift_url, user_name, id_provider, id_user)
+        #    if(r.status_code != 200 and r.status_code != 201):
+        #        return Response(
+        #            response=json.dumps({"msg": "Unable to create user (" + user_name + ")"}),
+        #            status=400,
+        #            mimetype='application/json'
+        #            )
+        return Response(
+            response=json.dumps({"msg": "User Deleted (" + user_name + ")"}),
+            status=200,
+            mimetype='application/json'
+            )
+       
     return Response(
         response=json.dumps({"msg": "Method: '" + request.method + "' Not found"}),
         status=405,
