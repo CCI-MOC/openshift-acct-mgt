@@ -30,17 +30,12 @@ RUN python3 --version
 # && pip3.4 install 'setuptools>=18.5' \
 # && cd /app
  
-RUN mkdir /app/openshift-acct-req \
-  && cd /app/openshift-acct-req \
-  && pip3 install gunicorn \
-  && pip3 install Flask \
-  && pip3 install kubernetes \
-  && pip3 install openshift
+RUN mkdir /app/openshift-acct-mgt 
 
-COPY wsgi.py /app/openshift-acct-req/wsgi.py
-COPY start.sh /app/openshift-acct-req/start.sh
-COPY requirements.txt /app/openshift-acct-req/requirements.txt
-COPY config.py /app/openshift-acct-req/config.py
+COPY wsgi.py /app/openshift-acct-mgt/wsgi.py
+COPY start.sh /app/openshift-acct-mgt/start.sh
+COPY requirements.txt /app/openshift-acct-mgt/requirements.txt
+COPY config.py /app/openshift-acct-mgt/config.py
 
 RUN cd /app/openshift-acct-req \
   && pip3 install -r requirements.txt
@@ -52,6 +47,6 @@ EXPOSE 8080 8443
 
 USER 1001
 
-WORKDIR /app/openshift-acct-req
-CMD ["/app/openshift-acct-req/start.sh"]
+WORKDIR /app/openshift-acct-mgt
+CMD ["/app/openshift-acct-mgt/start.sh"]
 
