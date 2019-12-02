@@ -104,7 +104,7 @@ def ms_delete_user(user_name):
     microserver_url=get_microserver()
     result=subprocess.run(['curl',"-X","DELETE","-kv",microserver_url+"/users/"+user_name],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
     print("result: "+result.stdout.decode('utf-8') +"\n\n")
-    if(compare_results(result,"{\"msg\": \"user deleted \("+user_name+"\)\"}")):
+    if(compare_results(result,'{"msg": "user deleted \('+user_name+'\)"}')):
         return True
     return False
 
@@ -150,12 +150,12 @@ class TestStringMethods(unittest.TestCase):
         # test user deletion
         if(oc_resource_exist("user", "test01",'test01[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test01','Error from server (NotFound): users.user.openshift.io "test01" not found')):
             self.assertTrue(ms_delete_user('test01'))
-        self.assertTrue(oc_resource_exist("user", "test01",'test01[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test01','Error from server (NotFound): users.user.openshift.io "test01" not found'))
+        self.assertFalse(oc_resource_exist("user", "test01",'test01[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test01','Error from server (NotFound): users.user.openshift.io "test01" not found'))
 
         # test deleting a user that was deleted
         if(not oc_resource_exist("user", "test01",'test01[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test01','Error from server (NotFound): users.user.openshift.io "test01" not found')):
-            self.assertTrue(ms_create_user('test01'))
-        self.assertTrue(oc_resource_exist("user", "test01",'test01[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test01','Error from server (NotFound): users.user.openshift.io "test01" not found'))
+            self.assertFalse(ms_delete_user('test01'))
+        self.assertFalse(oc_resource_exist("user", "test01",'test01[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test01','Error from server (NotFound): users.user.openshift.io "test01" not found'))
 
 
     #def test_project_user_role(self):
