@@ -575,7 +575,7 @@ def user_management(user_name, full_name=None, id_provider="sso_auth", id_user=N
                     mimetype='application/json'
                     )
         else:
-            user_does_not_exist = 0x02
+            user_does_not_exist =  user_does_not_exist | 0x02
 
         if(user_does_not_exist==3):
             return Response(
@@ -585,7 +585,7 @@ def user_management(user_name, full_name=None, id_provider="sso_auth", id_user=N
                 )
         else:
             return Response(
-                response=json.dumps({"msg": "deleted user (" + user_name + ")"}),
+                response=json.dumps({"msg": "user deleted (" + user_name + ")"}),
                 status=200,
                 mimetype='application/json'
                 )
