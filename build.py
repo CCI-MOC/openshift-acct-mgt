@@ -10,7 +10,7 @@ def wait_until_container_is_ready():
     matched_line=""
     while not done:
         time.sleep(5)
-        result=subprocess.run(['oc','get','all'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT) 
+        result=subprocess.run(['oc','-n','acct-mgt','get','all'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT) 
         lines=result.stdout.decode('utf-8').split('\n')
         cnt = 0
         for l in lines:
@@ -27,7 +27,7 @@ def wait_until_container_is_ready():
 def build_and_deploy():
     subprocess.run(['docker','build','-f','Dockerfile.x86','-t','docker.io/robertbartlettbaron/acct-mgt.x86','.'])
     subprocess.run(['docker','push','docker.io/robertbartlettbaron/acct-mgt.x86'])
-    subprocess.run(['oc','rollout','latest','acct-mgt'])
+    subprocess.run(['oc','-n','acct-mgt','rollout','latest','acct-mgt'])
     result=subprocess.run(['oc','get','all'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT) 
     return wait_until_container_is_ready()
 
