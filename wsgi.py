@@ -98,11 +98,54 @@ def delete_openshift_rolebindings(token, api_url, project_name, user_name, role)
     application.logger.warning("d: " + r.text)
     return r
 
-
-def create_openshift_rolebindings(token, api_url, project_name, role):
+def get_openshift_role(token, api_url, project_name, role=None):
     headers = {'Authorization': 'Bearer ' + token,
                'Accept': 'application/json', 'Content-Type': 'application/json'}
-    url = 'https://' + api_url + '/oapi/v1/namespaces/' + project_name + '/rolebindings/' + role
+    url = 'https://' + api_url + '/oapi/v1/namespaces/' + project_name + '/roles'
+    if(role is not None):
+        url = 'https://' + api_url + '/oapi/v1/namespaces/' + project_name + '/roles/' + role
+    r = requests.get(url, headers=headers, verify=False)
+    application.logger.warning("url: "+url)
+    application.logger.warning("gr r: " + str(r.status_code))
+    application.logger.warning("gr r: " + r.text)
+    return r
+
+
+def create_openshift_role(token, api_url, project_name, role):
+    headers = {'Authorization': 'Bearer ' + token,
+               'Accept': 'application/json', 'Content-Type': 'application/json'}
+    url = 'https://' + api_url + '/oapi/v1/namespaces/' + project_name + '/roles'
+    payload = {
+        "kind": "Role",
+        "apiVersion": "v1",
+        "metadata": {
+            "name": role,
+            "namespace": project_name
+        },
+        "name": role,
+        "namespace": project_name
+    }
+    r = requests.post(url, headers=headers, data=json.dumps(payload), verify=False)
+    application.logger.warning("url: "+url)
+    application.logger.warning("payload: "+json.dumps(payload))
+    application.logger.warning("cr r: " + str(r.status_code))
+    application.logger.warning("cr r: " + r.text)
+    return r
+
+def add_openshift_role(token,api_url,project_name,role):
+    r=get_openshift_role(token, api_url, project_name)
+    print("1: roles: "+r.text)
+    r=create_openshift_role(token, api_url, project_name, role)
+    print("2: roles: "+r.text)
+    r=get_openshift_role(token, api_url, project_name)
+    print("3: roles: "+r.text)
+
+    return r
+
+def create_openshift_rolebindings(token, api_url, project_name, user_name, role):
+    headers = {'Authorization': 'Bearer ' + token,
+               'Accept': 'application/json', 'Content-Type': 'application/json'}
+    url = 'https://' + api_url + '/oapi/v1/namespaces/' + project_name + '/rolebindings' # /' + role
     payload = {
         "kind": "RoleBinding",
         "apiVersion": "v1",
@@ -111,14 +154,14 @@ def create_openshift_rolebindings(token, api_url, project_name, role):
             "namespace": project_name
         },
         "groupNames": None,
-        "userNames": [],
+        "userNames": [ user_name ],
         "roleRef": {"name": role}
     }
     r = requests.post(url, headers=headers, data=json.dumps(payload), verify=False)
     application.logger.warning("url: "+url)
     application.logger.warning("payload: "+json.dumps(payload))
-    application.logger.warning("cr r: " + str(r.status_code))
-    application.logger.warning("cr r: " + r.text)
+    application.logger.warning("crb r: " + str(r.status_code))
+    application.logger.warning("crb r: " + r.text)
     return r
 
 def update_openshift_rolebindings(token,api_url,project_name,role,rolebindings_json):
@@ -159,8 +202,42 @@ def update_user_role_project(token, api_url, project_name, user, role, op):
             response=json.dumps({"msg":"op is not in ('add' or 'del')"}),
             status=400,
             mimetype='application/json'
-        ) 
-    r=get_openshift_rolebindings(token, api_url, project_name, role)
+        )
+    #add_openshift_role(token,api_url,project_name, role)
+
+    openshift_role = None
+    if(role == "admin"):
+        openshift_role = "admin"
+    elif(role == "member"):
+        openshift_role = "edit"
+    elif(role == "reader"):
+        openshift_role = "view"
+    else:
+        return Response( 
+            response=json.dumps({"msg":"Error: Invalid role,  "+role+" is not one of 'admin', 'member' or 'reader'"}),
+            status=400,
+            mimetype='application/json'
+        )
+        
+    r=get_openshift_rolebindings(token, api_url, project_name, openshift_role)
+    #print("A: result: "+r.text)
+    if(not (r.status_code==200 or r.status_code==201)):
+        # try to create the roles for binding
+        # can be more specific {"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"rolebindings \"admin\" not found","reason":"NotFound","details":{"name":"admin","kind":"rolebindings"},"code":404}
+        r=create_openshift_rolebindings(token, api_url, project_name, user, openshift_role)
+        if(r.status_code==200 or r.status_code==201):
+            return Response(
+                response=json.dumps({"msg":"rolebinding created ("+user+","+project_name+","+role+")"}),
+                status=400,
+                mimetype='application/json'
+            )
+        return Response(
+                response=json.dumps({"msg":" unable to create rolebinding ("+user+","+project_name+","+role+")" + r.text }),
+                status=400,
+                mimetype='application/json'
+            )
+
+    #print("B: result: "+r.text)
     #r=create_openshift_rolebinding(token, api_url, project_name, role)
     if(r.status_code==200 or r.status_code==201):
         role_binding=r.json()
@@ -191,9 +268,9 @@ def update_user_role_project(token, api_url, project_name, user, role, op):
                         status=400,
                         mimetype='application/json'
                     )
-
+    
         # now add or remove the user
-        r = update_openshift_rolebindings(token, api_url, project_name, role, role_binding)
+        r = update_openshift_rolebindings(token, api_url, project_name, openshift_role, role_binding)
 
         msg="unknown message"
         if(r.status_code==200 or r.status_code==201):
@@ -225,38 +302,18 @@ def update_user_role_project(token, api_url, project_name, user, role, op):
 def create_rolebindings(project_name, user_name, role):
     # role can be one of Admin, Member, Reader
     (token, openshift_url) = get_token_and_url()
-    openshift_role = None
-    if(role == "admin"):
-        openshift_role = "admin"
-    elif(role == "member"):
-        openshift_role = "edit"
-    elif(role == "reader"):
-        openshift_role = "view"
-    else:
-        return Response( 
-            response=json.dumps({"msg":"Error: Invalid role,  "+role+" is not one of 'admin', 'member' or 'reader'"}),
-            status=400,
-            mimetype='application/json'
-        )
-    application.logger.warning("openshift_role " + openshift_role)
-    if(openshift_role is not None):
-        r = None
-        if(request.method == 'GET'):
-            r = update_user_role_project(token, openshift_url, project_name, user_name, openshift_role,'add')
-            return r
-        elif(request.method == 'DELETE'):
-            r = update_user_role_project(token, openshift_url, project_name, user_name, openshift_role,'del')
-            return r
-        return Response(
-            response=json.dumps({"msg": "Method: '" + request.method + "' Not found"}),
-            status=405,
-            mimetype='application/json'
-            )
+
+    if(request.method == 'GET'):
+        r = update_user_role_project(token, openshift_url, project_name, user_name, role,'add')
+        return r
+    elif(request.method == 'DELETE'):
+        r = update_user_role_project(token, openshift_url, project_name, user_name, role,'del')
+        return r
     return Response(
-        response=json.dumps({"msg": "Invalid parameters/syntax"}),
-        status=400,
+        response=json.dumps({"msg": "Method: '" + request.method + "' Not found"}),
+        status=405,
         mimetype='application/json'
-        )        
+        )
 
 
 def exists_openshift_project(token, api_url, project_name):
@@ -309,6 +366,8 @@ def create_openshift_project(token, api_url, project_name, user_name):
 @application.route("/projects/<project_name>/owner/<user_name>", methods=['GET','DELETE'])
 def create_project(project_name, user_name=None):
     (token, openshift_url) = get_token_and_url()
+    r=get_openshift_role(token, openshift_url, project_name)
+    print("openshift_roles: ",r.text)
     if(request.method == 'GET'):
         # first check the project_name is a valid openshift project name
         suggested_project_name = cnvt_project_name(project_name)
