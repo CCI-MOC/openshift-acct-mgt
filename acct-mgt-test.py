@@ -58,8 +58,13 @@ def compare_results(result, pattern):
                 return True
     return False
 
-def oc_resource_exist(resource, name, true_pattern, false_pattern):
-    result=subprocess.run(['oc', 'get', resource, name],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+def oc_resource_exist(resource, name, true_pattern, false_pattern, project=None):
+    result=None
+    if(project is None):
+        result=subprocess.run(['oc', 'get', resource, name],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    else:
+        result=subprocess.run(['oc', '-n', project, 'get', resource, name],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+
     if(compare_results(result,true_pattern)):
         return True
     if(compare_results(result,false_pattern)):
@@ -69,7 +74,6 @@ def oc_resource_exist(resource, name, true_pattern, false_pattern):
 def ms_create_project(project_name):
     microserver_url=get_microserver()
     result=subprocess.run(['curl',"-X","GET","-kv",microserver_url+"/projects/"+project_name],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    #print("result: "+result.stdout.decode('utf-8') +"\n\n")
     # {"msg": "project created \(test\-001\)"}
     if(compare_results(result,'{"msg": "project created \('+project_name+'\)"}')):
         return True
@@ -78,23 +82,16 @@ def ms_create_project(project_name):
 def ms_delete_project(project_name):
     microserver_url=get_microserver()
     result=subprocess.run(['curl',"-X","DELETE","-kv",microserver_url+"/projects/"+project_name],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    #print("result: "+result.stdout.decode('utf-8') +"\n\n")
     # {"msg": "project deleted (test-001)"}
     if(compare_results(result,'{"msg": "project deleted \('+project_name+'\)"}')):
         return True
     return False
 
-def ms_project_user_role(project_name, user_name, role, success_pattern):
-    microserver_url=get_microserver()
-    result=subprocess.run(['curl',"-X","GET","-kv",microserver_url+"/projects/"+project_name+"/users/"+user_name+"/roles/"+role],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    if(compare_results(result,"{\"msg\": \"user created \("+user_name+"\)\" }")):
-        return True
-    return False
+
 
 def ms_create_user(user_name):
     microserver_url=get_microserver()
     result=subprocess.run(['curl',"-X","GET","-kv",microserver_url+"/users/"+user_name],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    print("result: "+result.stdout.decode('utf-8') +"\n\n")
     # {"msg": "user created (test01)"}
     if(compare_results(result,'{"msg": "user created \('+user_name+'\)"}')):
         return True
@@ -103,17 +100,34 @@ def ms_create_user(user_name):
 def ms_delete_user(user_name):
     microserver_url=get_microserver()
     result=subprocess.run(['curl',"-X","DELETE","-kv",microserver_url+"/users/"+user_name],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    print("result: "+result.stdout.decode('utf-8') +"\n\n")
+    #print("result: "+result.stdout.decode('utf-8') +"\n\n")
     if(compare_results(result,'{"msg": "user deleted \('+user_name+'\)"}')):
+        return True
+    return False
+
+
+def ms_user_project_add_role(user_name, project_name, role, success_pattern):
+    microserver_url=get_microserver()
+    result=subprocess.run(['curl',"-X","GET","-kv",microserver_url+"/users/"+user_name+"/projects/"+project_name+"/roles/"+role],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    print("--> result: "+result.stdout.decode('utf-8') +"\n\n")
+    if(compare_results(result,success_pattern)):
+        return True
+    return False
+
+def ms_user_project_remove_role(user_name, project_name, role, success_pattern):
+    microserver_url=get_microserver()
+    result=subprocess.run(['curl',"-X","DELETE","-kv",microserver_url+"/users/"+user_name+"/projects/"+project_name+"/roles/"+role],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    print("--> result: "+result.stdout.decode('utf-8') +"\n\n")
+    if(compare_results(result,success_pattern)):
         return True
     return False
 
 class TestStringMethods(unittest.TestCase):
 
     def test_project(self):
-        #if(oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found')):
-        #    print("Error: test_project failed as a project with a name of test-001 exists.  Please delete first and rerun the tests\n")
-        #    self.assertTrue(False)
+        if(oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found')):
+            print("Error: test_project failed as a project with a name of test-001 exists.  Please delete first and rerun the tests\n")
+            self.assertTrue(False)
 
         # test project creation
         if(not oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found')):
@@ -136,6 +150,10 @@ class TestStringMethods(unittest.TestCase):
         self.assertTrue(oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found'))
 
     def test_user(self):
+        if(oc_resource_exist("user", "test01",'test01[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test01','Error from server (NotFound): users.user.openshift.io "test01" not found')):
+            print("Error: test_user failed as a user with a name of test01 exists.  Please delete first and rerun the tests\n")
+            self.assertTrue(False)
+
         # test user creation
         # test01                    bfd6dab5-11f3-11ea-89a6-fa163e2bb38b                         sso_auth:test01
         if(not oc_resource_exist("user", "test01",'test01[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test01','Error from server (NotFound): users.user.openshift.io "test01" not found')):
@@ -157,8 +175,36 @@ class TestStringMethods(unittest.TestCase):
             self.assertFalse(ms_delete_user('test01'))
         self.assertFalse(oc_resource_exist("user", "test01",'test01[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test01','Error from server (NotFound): users.user.openshift.io "test01" not found'))
 
+    #def test_user_adv(self):
 
-    #def test_project_user_role(self):
+    def test_project_user_role(self):
+        # Create a project
+        if(not oc_resource_exist("project", "test-002",'test-002[ \t]*test-002[ \t]','Error from server (NotFound): namespaces "test-002" not found')):
+            self.assertTrue(ms_create_project('test-002'))
+        self.assertTrue(oc_resource_exist("project", "test-002",'test-002[ \t]*test-002[ \t]','Error from server (NotFound): namespaces "test-002" not found'))
+
+        # Create some users test02 - test-05
+        for x in range(2,6):
+            if(not oc_resource_exist("user", "test0"+str(x),'test0'+str(x)+'[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test0'+str(x),'Error from server (NotFound): users.user.openshift.io "test0'+str(x)+'" not found')):
+                self.assertTrue(ms_create_user('test0'+str(x)))
+            self.assertTrue(oc_resource_exist("user", 'test0'+str(x),'test0'+str(x)+'[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test0'+str(x),'Error from server (NotFound): users.user.openshift.io "test0'+str(x)+'" not found'))
+
+        # now bind an admin role to the user
+        self.assertTrue(ms_user_project_add_role("test02", "test-002", 'admin', '{"msg": "rolebinding created \(test02,test-002,admin\)"}'))
+        self.assertTrue(oc_resource_exist("rolebindings", 'admin', '^admin[ \t]*/admin[ \t]*test02','',"test-002"))
+
+        self.assertTrue(ms_user_project_add_role("test02", "test-002", 'admin', '{"msg": "rolebinding already exists - unable to add \(test02,test-002,admin\)"}'))
+
+        self.assertTrue(ms_user_project_remove_role("test02", "test-002", 'admin', '{"msg": "removed role from user on project"}'))
+        self.assertFalse(oc_resource_exist("rolebindings", 'admin', '^admin[ \t]*/admin[ \t]*test02','',"test-002"))
+
+        self.assertTrue(ms_user_project_remove_role("test02", "test-002", 'admin', '{"msg": "rolebinding does not exist - unable to delete \(test02,test-002,admin\)"}'))
+
+        ms_delete_project('test-002')
+
+        for x in range(2,6):
+            if(oc_resource_exist("user", "test0"+str(x),'test0'+str(x)+'[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test0'+str(x),'Error from server (NotFound): users.user.openshift.io "test0'+str(x)+'" not found')):
+                ms_delete_user('test0'+str(x))
     #def test_quota(self):
 
 
