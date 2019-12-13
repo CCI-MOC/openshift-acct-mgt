@@ -10,6 +10,7 @@ def get_microserver():
     microserver_url='https://acct-mgt-acct-mgt.s-apps.osh.massopen.cloud'
     return microserver_url;
 
+# Don't use this one.
 def wait_until_container_is_ready():
     p1=re.compile("pod")
     p2=re.compile("Running")
@@ -28,6 +29,27 @@ def wait_until_container_is_ready():
         if(cnt==1):
             done=True
     if(p2.match(matched_line)):
+        return True
+    return False
+
+# A more general wait
+def wait_until_done(oc_cmd, finished_pattern, time_out=30, decrement=5):
+    p1=re.compile(finished_pattern)
+    p2=re.compile("Running")
+    done=False
+    oc_array=oc_cmd.split(" ")
+    matched_line=""
+    while time_out>0 and not done:
+        time.sleep(5)
+        time_out=time_out-decrement
+        result=subprocess.run(oc_array,stdout=subprocess.PIPE,stderr=subprocess.STDOUT) 
+        lines=result.stdout.decode('utf-8').split('\n')
+        cnt = 0
+        for l in lines:
+            if(p1.match(l)):
+                matched_line=l
+                done=True
+    if(p1.match(matched_line)):
         return True
     return False
 
@@ -65,6 +87,9 @@ def oc_resource_exist(resource, name, true_pattern, false_pattern, project=None)
     else:
         result=subprocess.run(['oc', '-n', project, 'get', resource, name],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
 
+    #print("\nresult: \n\n"+result.stdout.decode('utf-8'))
+    #print("\nT pattern: "+true_pattern)
+    #print("\nF pattern: "+false_pattern)
     if(compare_results(result,true_pattern)):
         return True
     if(compare_results(result,false_pattern)):
@@ -122,32 +147,52 @@ def ms_user_project_remove_role(user_name, project_name, role, success_pattern):
         return True
     return False
 
+def check_result(test,result):
+    if(test):
+        return result
+    return result+1
+    
 class TestStringMethods(unittest.TestCase):
 
     def test_project(self):
+        result=0
+
         if(oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found')):
             print("Error: test_project failed as a project with a name of test-001 exists.  Please delete first and rerun the tests\n")
             self.assertTrue(False)
 
         # test project creation
         if(not oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found')):
-            self.assertTrue(ms_create_project('test-001'))
-        self.assertTrue(oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found'))
-
+            ms_create_project('test-001')
+            if( not wait_until_done('oc get project test-001', 'test-001[ \t]+test-001[ \t]+Active') ):
+                print("Create Project Failed")
+        result=check_result(oc_resource_exist("project", "test-001",'test-001[ \t]+test-001[ \t]+Active','Error from server (NotFound): namespaces "test-001" not found'),result)
+        print("A: "+str(result))
+        
         # test creation of a second project with the same name
         if(oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found')):
-            self.assertFalse(ms_create_project('test-001'))
-        self.assertTrue(oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found'))
-
+            if( ms_create_project('test-001') ):
+                print("Create Project succeed where it should have failed")
+        result=check_result(oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found'),result)
+        print("B: "+str(result))
+        
         # test project deletion
         if(oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found')):
-            self.assertTrue(ms_delete_project('test-001'))
-        self.assertTrue(oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found'))
-
+            ms_delete_project('test-001')
+            # Wait until test-001 is terminated
+            if(not wait_until_done('oc get project test-001', 'Error from server \(NotFound\): namespaces "test-001" not found') ):
+                print("delete project failed to delete project")
+        result=check_result(not oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found'),result)
+        print("c: "+str(result))
+        
         # test deleting a project that was deleted
         if(not oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found')):
-            self.assertTrue(ms_create_project('test-001'))
-        self.assertTrue(oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found'))
+            if( ms_delete_project('test-001') ):
+                print("delete project succeeded where it should have failed")
+        result=check_result(not oc_resource_exist("project", "test-001",'test-001[ \t]*test-001[ \t]','Error from server (NotFound): namespaces "test-001" not found'),result)
+        print("D: "+str(result))
+        
+        self.assertTrue(result==0)
 
     def test_user(self):
         if(oc_resource_exist("user", "test01",'test01[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test01','Error from server (NotFound): users.user.openshift.io "test01" not found')):
