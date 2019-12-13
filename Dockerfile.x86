@@ -30,6 +30,12 @@ RUN mkdir /app/openshift-acct-mgt
 #  && pip3 install openshift
 
 COPY wsgi.py /app/openshift-acct-mgt/wsgi.py
+copy openshift_user.py /app/openshift-acct-mgt/openshift_user.py
+copy openshift_identity.py /app/openshift-acct-mgt/openshift_identity.py
+copy openshift_rolebindings.py /app/openshift-acct-mgt/openshift_rolebindings.py
+copy openshift_project.py /app/openshift-acct-mgt/openshift_project.py
+copy openshift_role.py /app/openshift-acct-mgt/openshift_role.py
+
 COPY start.sh /app/openshift-acct-mgt/start.sh
 COPY requirements.txt /app/openshift-acct-mgt/requirements.txt
 COPY config.py /app/openshift-acct-mgt/config.py
