@@ -47,12 +47,12 @@ def get_moc_rolebindings(project_name, user_name, role):
     get_openshift_rolebindings(token, api_url, project_name, role)
     if(exists_openshift_rolebindings(token, openshift_url, project_name, role)):
         return Response(
-                response=json.dumps({"msg": "Project (" + user_name + ") exists"}),
+                response=json.dumps({"msg": "user role exists ("+project_name + "," + user_name + ","+ role + ")"}),
                 status=202,
                 mimetype='application/json'
             )
     return Response(
-            response=json.dumps({"msg": "Project (" + user_name + ") does not exist"}),
+            response=json.dumps({"msg": "user role does not exists ("+project_name + "," + user_name + ","+ role + ")"}),
             status=400,
             mimetype='application/json'
         )    
@@ -78,12 +78,12 @@ def get_moc_project(project_name, user_name=None):
     (token, openshift_url) = get_token_and_url()
     if(exists_openshift_project(token, openshift_url, project_name)):
         return Response(
-            response=json.dumps({"msg": "Project (" + user_name + ") exists"}),
+            response=json.dumps({"msg": "project exists (" + project_name + ")"}),
             status=202,
             mimetype='application/json'
             )
     return Response(
-        response=json.dumps({"msg": "Project (" + user_name + ") does not exist"}),
+        response=json.dumps({"msg": "project does not exist (" + project_name + ")"}),
         status=400,
         mimetype='application/json'
         )                 
