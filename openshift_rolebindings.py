@@ -10,19 +10,11 @@ import sys
 
 application = Flask(__name__)
 
-def exists_openshift_rolebindings(token, api_url, project_name, role):
-    headers = {'Authorization': 'Bearer ' + token,
-               'Accept': 'application/json',
-               'Content-Type': 'application/json'}
-    url = 'https://' + api_url + '/oapi/v1/namespaces/' +  project_name + '/rolebindings/' + role
-    r = requests.get(url, headers=headers, verify=False)
-    application.logger.debug("url: "+url)
-    application.logger.debug("r: " + str(r.status_code) + "  " + user_name)
-    application.logger.debug("r: " + r.text)
-    if(r.status_code == 200 or r.status_code == 201):
-        return True
-    return False
-
+# To check if a particular user has a rolebinding, get the complete
+# list of users that have that particular role on the project and 
+# see if the user_name is in that list.
+#
+# This just returns the list
 def get_openshift_rolebindings(token, api_url, project_name, role):
     headers = {'Authorization': 'Bearer ' + token,
                'Accept': 'application/json',
