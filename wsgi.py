@@ -106,13 +106,12 @@ def create_moc_project(project_uuid, user_name=None):
     if(not exists_openshift_project(token, openshift_url, project_uuid)):
         project_name=project_uuid
         if("Content-Length" in request.headers):
-            application.logger.warning("content_length: "+str(request.headers["Content-Length"]))
             req_json=request.get_json(force=True)
             if("displayName" in req_json):
                 project_name=req_json["displayName"]
-            application.logger.warning("create project json: "+project_name)
+            application.logger.debug("create project json: "+project_name)
         else:
-            application.logger.warning("create project json: None")
+            application.logger.debug("create project json: None")
 
         r = create_openshift_project(token, openshift_url, project_uuid, project_name, user_name)
         if(r.status_code == 200 or r.status_code == 201):
