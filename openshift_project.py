@@ -43,12 +43,12 @@ def delete_openshift_project(token, api_url, project_name, user_name):
     return r
 
 
-def create_openshift_project(token, api_url, project_name, user_name):
+def create_openshift_project(token, api_url, project_uuid, project_name, user_name):
     # check project_name
     headers = {'Authorization': 'Bearer ' + token,
                'Accept': 'application/json', 'Content-Type': 'application/json'}
     url = 'https://' + api_url + '/oapi/v1/projects'
-    payload = {"kind": "Project", "apiVersion": "v1", "metadata": {"name": project_name, "annotations": {
+    payload = {"kind": "Project", "apiVersion": "v1", "metadata": {"name": project_uuid, "annotations": {
         "openshift.io/display-name": project_name, "openshift.io/requester": user_name}}}
     r = requests.post(url, headers=headers,
                       data=json.dumps(payload), verify=False)
