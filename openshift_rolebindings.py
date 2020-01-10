@@ -21,8 +21,40 @@ def get_openshift_rolebindings(token, api_url, project_name, role):
                'Content-Type': 'application/json'}
     url = 'https://' + api_url + '/oapi/v1/namespaces/' +  project_name + '/rolebindings/' + role
     r = requests.get(url, headers=headers, verify=False)
-    application.logger.debug("r: "+r.text)
+    application.logger.warning("get rolebindings: "+r.text)
     return r
+
+def exists_user_rolebinding(token, api_url, user, project_name,role):
+    if(role == "admin"):
+        openshift_role = "admin"
+    elif(role == "member"):
+        openshift_role = "edit"
+    elif(role == "reader"):
+        openshift_role = "view"
+
+    get_openshift_rolebindings(token,api_url,project_name,openshift_role)
+    if((r.status_code==200 or r.status_code==201)):
+        role_binding=r.json()
+        if(user in role_binding["userNames"]):
+            return True
+    return False
+
+def get_all_moc_rolebindings(token, api_url, user, project_name):
+    rolebindings=[]
+    for role in ["admin", "member", "view"]:
+        if(exists_user_rolebinding(token,api_url,user,project_name,role)):
+            role_bindings.push(role)
+    if(role_bindings.size()>0):
+        return Response( 
+            response=json.dumps({"msg":"role found", "rolebindings": rolebindings }),
+            status=200,
+            mimetype='application/json'
+        )
+    return Response( 
+        response=json.dumps({"msg":"roles not found"}),
+        status=400,
+        mimetype='application/json'
+    )
 
 def list_openshift_rolebindings(token, api_url, project_name):
     headers = {'Authorization': 'Bearer ' + token,
