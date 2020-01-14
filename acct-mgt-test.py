@@ -135,7 +135,6 @@ def ms_check_user(user_name):
     microserver_url=get_microserver()
     result=subprocess.run(['curl',"-X","GET","-kv",microserver_url+"/users/"+user_name],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
     # {"msg": "User (test01) exists"}
-    print("\ncheck_user: "+result.stdout.decode('utf-8') +"\n\n")
     if(compare_results(result,r'{"msg": "user \('+user_name+r'\) exists"}')):
         return True
     return False    
@@ -160,7 +159,7 @@ def ms_delete_user(user_name):
 def ms_user_project_get_role(user_name, project_name, role, success_pattern):
     microserver_url=get_microserver()
     result=subprocess.run(['curl',"-X","PUT","-kv",microserver_url+"/users/"+user_name+"/projects/"+project_name+"/roles/"+role],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    print("get role --> result: "+result.stdout.decode('utf-8') +"\n\n")
+    #print("get role --> result: "+result.stdout.decode('utf-8') +"\n\n")
     if(compare_results(result,success_pattern)):
         return True
     return False
@@ -168,7 +167,7 @@ def ms_user_project_get_role(user_name, project_name, role, success_pattern):
 def ms_user_project_add_role(user_name, project_name, role, success_pattern):
     microserver_url=get_microserver()
     result=subprocess.run(['curl',"-X","PUT","-kv",microserver_url+"/users/"+user_name+"/projects/"+project_name+"/roles/"+role],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    print("add role --> result: "+result.stdout.decode('utf-8') +"\n\n")
+    #print("add role --> result: "+result.stdout.decode('utf-8') +"\n\n")
     return True
     if(compare_results(result,success_pattern)):
         return True
