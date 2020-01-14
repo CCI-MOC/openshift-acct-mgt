@@ -153,19 +153,19 @@ def delete_moc_project(project_uuid, user_name=None):
         status=400,
         mimetype='application/json'
         )
- 
+
 @application.route("/users/<user_name>", methods=['GET'])
 def get_moc_user(user_name, full_name=None, id_provider="sso_auth", id_user=None):
     (token, openshift_url) = get_token_and_url()
     r=None
     if(exists_openshift_user(token, openshift_url, user_name)):
         return Response(
-            response=json.dumps({"msg": "User (" + user_name + ") exists"}),
+            response=json.dumps({"msg": "user (" + user_name + ") exists"}),
             status=202,
             mimetype='application/json'
             )
     return Response(
-            response=json.dumps({"msg": "User (" + user_name + ") does not exist"}),
+            response=json.dumps({"msg": "user (" + user_name + ") does not exist"}),
             status=400,
             mimetype='application/json'
             )       
@@ -181,7 +181,7 @@ def create_moc_user(user_name, full_name=None, id_provider="sso_auth", id_user=N
         r = create_openshift_user(token, openshift_url, user_name, full_name)
         if(r.status_code != 200 and r.status_code != 201):
             return Response(
-                response=json.dumps({"msg": "unable to create openshift User (" + user_name + ") 1"}),
+                response=json.dumps({"msg": "unable to create openshift user (" + user_name + ") 1"}),
                 status=400,
                 mimetype='application/json'
                 )

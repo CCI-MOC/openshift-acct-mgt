@@ -15,10 +15,10 @@ def exists_openshift_user(token, api_url, user_name):
                'Accept': 'application/json', 'Content-Type': 'application/json'}
     url = 'https://' + api_url + '/oapi/v1/users/' + user_name
     r = requests.get(url, headers=headers, verify=False)
-    application.logger.debug("url: "+url)
+    application.logger.warning("url: "+url)
     #application.logger.debug("payload: "+payload)
-    application.logger.debug("exists os user: " + str(r.status_code))
-    application.logger.debug("exists os user: " + r.text)
+    application.logger.warning("exists os user: " + str(r.status_code))
+    application.logger.warning("exists os user: " + r.text)
     if(r.status_code == 200 or r.status_code == 201):
         return True
     return False
