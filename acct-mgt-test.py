@@ -158,8 +158,8 @@ def ms_delete_user(user_name):
 
 def ms_user_project_get_role(user_name, project_name, role, success_pattern):
     microserver_url=get_microserver()
-    result=subprocess.run(['curl',"-X","PUT","-kv",microserver_url+"/users/"+user_name+"/projects/"+project_name+"/roles/"+role],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    #print("get role --> result: "+result.stdout.decode('utf-8') +"\n\n")
+    result=subprocess.run(['curl',"-X","GET","-kv",microserver_url+"/users/"+user_name+"/projects/"+project_name+"/roles/"+role],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    print("get role --> result: "+result.stdout.decode('utf-8') +"\n\n")
     if(compare_results(result,success_pattern)):
         return True
     return False
@@ -272,8 +272,10 @@ def test_project_user_role():
         check.is_true(oc_resource_exist("user", 'test0'+str(x),'test0'+str(x)+r'[ \t]*[a-f0-9\-]*[ \t]*sso_auth:test0'+str(x),r'Error from server (NotFound): users.user.openshift.io "test0'+str(x)+r'" not found'),"user test0"+str(x)+' not found')
 
     # now bind an admin role to the user
+    check.is_false(ms_user_project_get_role("test02", "test-002", 'admin',r'{"msg": "user role exists \(test-002,test02,admin\)"}' ))
     check.is_true(ms_user_project_add_role("test02", "test-002", 'admin', r'{"msg": "rolebinding created \(test02,test-002,admin\)"}'),"Role unable to be added")
     check.is_true(oc_resource_exist("rolebindings", 'admin', '^admin[ \t]*/admin[ \t]*test02','',"test-002"),"role does not exist")
+    check.is_true(ms_user_project_get_role("test02", "test-002", 'admin',r'{"msg": "user role exists \(test-002,test02,admin\)"}' ))
 
     check.is_true(ms_user_project_add_role("test02", "test-002", 'admin', r'{"msg": "rolebinding already exists - unable to add \(test02,test-002,admin\)"}'),"Added the same role to a user failed as it should")
 
