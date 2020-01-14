@@ -32,7 +32,7 @@ def exists_user_rolebinding(token, api_url, user, project_name,role):
     elif(role == "reader"):
         openshift_role = "view"
 
-    get_openshift_rolebindings(token,api_url,project_name,openshift_role)
+    r=get_openshift_rolebindings(token,api_url,project_name,openshift_role)
     if((r.status_code==200 or r.status_code==201)):
         role_binding=r.json()
         if(user in role_binding["userNames"]):
@@ -52,7 +52,7 @@ def get_all_moc_rolebindings(token, api_url, user, project_name):
         )
     return Response( 
         response=json.dumps({"msg":"roles not found"}),
-        status=400,
+        status=404,
         mimetype='application/json'
     )
 
@@ -173,7 +173,7 @@ def update_user_role_project(token, api_url, project_name, user, role, op):
         if(r.status_code==200 or r.status_code==201):
             return Response(
                 response=json.dumps({"msg":"rolebinding created ("+user+","+project_name+","+role+")"}),
-                status=400,
+                status=200,
                 mimetype='application/json'
             )
         return Response(

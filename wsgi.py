@@ -45,16 +45,15 @@ def get_token_and_url():
 def get_moc_rolebindings(project_name, user_name, role):
     # role can be one of Admin, Member, Reader
     (token, openshift_url) = get_token_and_url()
-    get_openshift_rolebindings(token, api_url, project_name, role)
-    if(exists_openshift_rolebindings(token, openshift_url, project_name, role)):
+    if(exists_user_rolebinding(token, openshift_url, user_name, project_name, role)):
         return Response(
                 response=json.dumps({"msg": "user role exists ("+project_name + "," + user_name + ","+ role + ")"}),
-                status=202,
+                status=200,
                 mimetype='application/json'
             )
     return Response(
             response=json.dumps({"msg": "user role does not exists ("+project_name + "," + user_name + ","+ role + ")"}),
-            status=400,
+            status=404,
             mimetype='application/json'
         )    
 
@@ -80,7 +79,7 @@ def get_moc_project(project_uuid, user_name=None):
     if(exists_openshift_project(token, openshift_url, project_uuid)):
         return Response(
             response=json.dumps({"msg": "project exists (" + project_uuid + ")"}),
-            status=202,
+            status=200,
             mimetype='application/json'
             )
     return Response(
@@ -161,7 +160,7 @@ def get_moc_user(user_name, full_name=None, id_provider="sso_auth", id_user=None
     if(exists_openshift_user(token, openshift_url, user_name)):
         return Response(
             response=json.dumps({"msg": "user (" + user_name + ") exists"}),
-            status=202,
+            status=200,
             mimetype='application/json'
             )
     return Response(
