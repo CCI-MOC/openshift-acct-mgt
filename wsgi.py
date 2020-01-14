@@ -4,6 +4,7 @@ import logging
 import requests
 import json
 import re
+import os
 from flask import Flask, redirect, url_for, request, Response
 #from flask_restful import reqparse
 
@@ -30,15 +31,7 @@ def get_user_token():
 
 def get_token_and_url():
     token = get_user_token()
-    #openshift_url = "https://192.168.64.17:8443"
-    #openshift_url = "https://k-openshift.osh.massopen.cloud:8443"
-    openshift_url = "s-openshift.osh.massopen.cloud:8443"
-    #openshift_url = "sn001:8443"
-
-    #the following 3 don't work
-    #openshift_url = "https://127.30.0.1:443"
-    #openshift_url = "https://127.30.0.1:8443"
-    #openshift_url = "https://127.0.0.1:8443"
+    openshift_url = os.environ["openshift_url"]
     return (token, openshift_url)
 
 @application.route("/users/<user_name>/projects/<project_name>/roles/<role>", methods=['GET'])
