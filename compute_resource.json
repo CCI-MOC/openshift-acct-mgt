@@ -1,0 +1,17 @@
+{
+  "kind": "ResourceQuota",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "compute-resource-2"
+  },
+  "spec": {
+    "hard": {
+      "limits.cpu": "4",
+      "limits.memory": "2Gi",
+      "pods": "5",
+      "requests.cpu": "1",
+      "requests.memory": "1Gi"
+    }
+  }
+}
+
