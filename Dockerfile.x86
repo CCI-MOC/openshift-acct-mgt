@@ -1,7 +1,7 @@
 # docker build -t docker.io/robertbartlettbaron/acct-req .
 # docker run docker.io/robertbartlettbaron/acct-req
 # docker push "docker.io/robertbartlettbaron/acct-req"
-#FROM registry.redhat.io/rhel  
+#FROM registry.redhat.io/rhel
 FROM centos
 
 WORKDIR /app
@@ -11,7 +11,7 @@ RUN yum install -y cpan
 RUN yum list | grep python
 
 #RUN yum -y install rh-python36
-#RUN yum -y install rh-hython36-pip 
+#RUN yum -y install rh-hython36-pip
 
 RUN yum -y install make gcc libffi-devel openssl-devel bzip2-devel wget wireshark git python36.x86_64 python36-devel.x86_64\
   && curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
@@ -21,7 +21,7 @@ RUN python3 --version
 # && pip3.4 install --upgrade pip \
 # && pip3.4 install 'setuptools>=18.5' \
 # && cd /app
- 
+
 RUN mkdir /app/openshift-acct-mgt
 #  && cd /app/openshift-acct-mgt \
 #  && pip3 install gunicorn \
@@ -35,6 +35,13 @@ copy openshift_identity.py /app/openshift-acct-mgt/openshift_identity.py
 copy openshift_rolebindings.py /app/openshift-acct-mgt/openshift_rolebindings.py
 copy openshift_project.py /app/openshift-acct-mgt/openshift_project.py
 copy openshift_role.py /app/openshift-acct-mgt/openshift_role.py
+copy openshift_resource_quota.py /app/openshift-acct-mgt/openshift_resource_quota.py
+
+
+copy compute_resource.json /app/openshift-acct-mgt/compute_resource.json
+copy update_quota.json /app/openshift-acct-mgt/update_quota.json
+
+
 
 COPY start.sh /app/openshift-acct-mgt/start.sh
 COPY requirements.txt /app/openshift-acct-mgt/requirements.txt
@@ -53,4 +60,3 @@ USER 1001
 
 WORKDIR /app/openshift-acct-mgt
 CMD ["/app/openshift-acct-mgt/start.sh"]
-

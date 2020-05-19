@@ -14,6 +14,7 @@ from openshift_rolebindings import *
 from openshift_project import *
 from openshift_identity import *
 from openshift_user import *
+from openshift_resource_quota import *
 
 application = Flask(__name__)
 
@@ -48,15 +49,15 @@ def get_moc_rolebindings(project_name, user_name, role):
             response=json.dumps({"msg": "user role does not exists ("+project_name + "," + user_name + ","+ role + ")"}),
             status=404,
             mimetype='application/json'
-        )    
+        )
 
 @application.route("/users/<user_name>/projects/<project_name>/roles/<role>", methods=['PUT'])
 def create_moc_rolebindings(project_name, user_name, role):
     # role can be one of Admin, Member, Reader
     (token, openshift_url) = get_token_and_url()
-    r = update_user_role_project(token, openshift_url, project_name, user_name, role,'add') 
+    r = update_user_role_project(token, openshift_url, project_name, user_name, role,'add')
     return r
- 
+
 
 @application.route("/users/<user_name>/projects/<project_name>/roles/<role>", methods=['DELETE'])
 def delete_moc_rolebindings(project_name, user_name, role):
@@ -79,7 +80,7 @@ def get_moc_project(project_uuid, user_name=None):
         response=json.dumps({"msg": "project does not exist (" + project_uuid + ")"}),
         status=400,
         mimetype='application/json'
-        )                 
+        )
 
 @application.route("/projects/<project_uuid>", methods=['PUT'])
 @application.route("/projects/<project_uuid>/owner/<user_name>", methods=['PUT'])
@@ -160,7 +161,7 @@ def get_moc_user(user_name, full_name=None, id_provider="sso_auth", id_user=None
             response=json.dumps({"msg": "user (" + user_name + ") does not exist"}),
             status=400,
             mimetype='application/json'
-            )       
+            )
 
 @application.route("/users/<user_name>", methods=['PUT'])
 def create_moc_user(user_name, full_name=None, id_provider="sso_auth", id_user=None):
@@ -259,7 +260,75 @@ def delete_moc_user(user_name, full_name=None, id_provider="sso_auth", id_user=N
         response=json.dumps({"msg": "user deleted (" + user_name + ")"}),
         status=200,
         mimetype='application/json'
-        )     
+        )
+
+
+@application.route("/quota/<project_name>/resourcequota/<resource_name>", methods=['GET'])
+def get_resource_quotas(project_name,resource_name):
+    (token, openshift_url) = get_token_and_url()
+    r=None
+    if(exists_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
+        return Response(
+            response=json.dumps({"msg": " Quota exists (" + resource_name + ")  with project -- (" + project_name + ")"}),
+            status=200,
+            mimetype='application/json'
+            )
+    return Response(
+            response=json.dumps({"msg": "No Quotas with name  (" + resource_name + ") in project (" + project_name +") "}),
+            status=400,
+            mimetype='application/json'
+            )
+
+
+
+@application.route("/quota/<project_name>/resourcequota/<resource_name>/cpu/<cpu_limit>/memory/<memory_limit>", methods=['PUT'])
+def create_resource_quota(project_name, resource_name, cpu_limit, memory_limit):
+    (token, openshift_url) = get_token_and_url()
+    r=None
+    if(not exists_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
+        if(create_openshift_resource_quota(token, openshift_url, project_name, resource_name, cpu_limit, memory_limit)):
+            return Response(
+                response=json.dumps({"msg": "Quota created (" +resource_name+ ")"}),
+                status=200,
+                mimetype='application/json'
+                )
+        else:
+            return Response(
+                    response=json.dumps({"msg": "Unable to create resource quotas for project (" + project_name + ") "}),
+                    status=400,
+                    mimetype='application/json'
+                    )
+    else:
+        return Response(
+                response=json.dumps({"msg": "Unable to create quota because it already exists (" + resource_name+ " ) "}),
+                status=400,
+                mimetype='application/json'
+                )
+
+
+@application.route("/quota/<project_name>/resourcequota/<resource_name>", methods=['DELETE'])
+def delete_resource_quota(project_name, resource_name):
+    (token, openshift_url) = get_token_and_url()
+    r=None
+    if(exists_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
+        r = delete_openshift_resource_quota( token, openshift_url, project_name, resource_name)
+        if(r.status_code == 200 or r.status_code == 201):
+            return Response(
+                response=json.dumps({"msg": "quota deleted (" +resource_name+ ")"}),
+                status=200,
+                mimetype='application/json'
+                )
+        return Response(
+                response=json.dumps({"msg": "Unable to delete resource quotas are assosiated with (" + project_name + ") "}),
+                status=400,
+                mimetype='application/json'
+                )
+    else:
+        return Response(
+                response=json.dumps({"msg": "No such quotas exists with ("  + resource_name+ " ) in project  ("+ project_name +")"}),
+                status=400,
+                mimetype='application/json'
+                )
 
 
 if __name__ == "__main__":
