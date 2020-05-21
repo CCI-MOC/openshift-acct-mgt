@@ -164,49 +164,46 @@ def get_moc_user(user_name, full_name=None, id_provider="sso_auth", id_user=None
 
 @application.route("/users/<user_name>", methods=['PUT'])
 def create_moc_user(user_name, full_name=None, id_provider="sso_auth", id_user=None):
-    (token, openshift_url) = get_token_and_url()
-    r=None
-    # full name in payload
-    user_exists = 0x00
-    # use case if User doesn't exist, then create
-    if(not exists_openshift_user(token, openshift_url, user_name)):
+    token, openshift_url = get_token_and_url()
+
+    # A user in OpenShift is composed of 3 parts: user, identity, and identitymapping.
+    user_exists = exists_openshift_user(token, openshift_url, user_name)
+    if not user_exists:
         r = create_openshift_user(token, openshift_url, user_name, full_name)
-        if(r.status_code != 200 and r.status_code != 201):
+
+        if r.status_code not in [200, 201]:
             return Response(
                 response=json.dumps({"msg": "unable to create openshift user (" + user_name + ") 1"}),
                 status=400,
                 mimetype='application/json'
                 )
-    else:
-        user_exists = user_exists | 0x01
 
-    if(id_user is None):
+    if id_user is None:
         id_user = user_name
 
-    # if identity doesn't exist then create
-    if(not exists_openshift_identity(token, openshift_url, id_provider, id_user)):
+    identity_exists = exists_openshift_identity(token, openshift_url, id_provider, id_user)
+    if not identity_exists:
         r = create_openshift_identity(token, openshift_url, id_provider, id_user)
-        if(r.status_code != 200 and r.status_code != 201):
+
+        if r.status_code not in [200, 201]:
             return Response(
                 response=json.dumps({"msg": "unable to create openshift identity (" + id_provider + ")"}),
                 status=400,
                 mimetype='application/json'
                 )
-    else:
-        user_exists = user_exists | 0x02
-    # creates the useridenitymapping
-    if(not exists_openshift_useridentitymapping(token, openshift_url, user_name, id_provider, id_user)):
+
+    mapping_exists = exists_openshift_useridentitymapping(token, openshift_url, user_name, id_provider, id_user)
+    if not mapping_exists:
         r = create_openshift_useridentitymapping(token, openshift_url, user_name, id_provider, id_user)
-        if(r.status_code != 200 and r.status_code != 201):
+
+        if r.status_code not in [200, 201]:
             return Response(
                 response=json.dumps({"msg": "unable to create openshift user identity mapping (" + user_name + ")"}),
                 status=400,
                 mimetype='application/json'
                 )
-    else:
-        user_exists = user_exists | 0x04
 
-    if(user_exists==7):
+    if user_exists and identity_exists and mapping_exists:
         return Response(
             response=json.dumps({"msg": "user currently exists (" + user_name + ")"}),
             status=200,
@@ -218,38 +215,36 @@ def create_moc_user(user_name, full_name=None, id_provider="sso_auth", id_user=N
         mimetype='application/json'
         )
 
+
 @application.route("/users/<user_name>", methods=['DELETE'])
 def delete_moc_user(user_name, full_name=None, id_provider="sso_auth", id_user=None):
-    (token, openshift_url) = get_token_and_url()
-    r=None
-    user_does_not_exist=0
-    # use case if User exists then delete
-    if(exists_openshift_user(token, openshift_url, user_name)):
+    token, openshift_url = get_token_and_url()
+
+    user_exists = exists_openshift_user(token, openshift_url, user_name)
+    if user_exists:
         r = delete_openshift_user(token, openshift_url, user_name, full_name)
-        if(r.status_code != 200 and r.status_code != 201):
+        if r.status_code not in [200, 201]:
             return Response(
                 response=json.dumps({"msg": "unable to delete User (" + user_name + ") 1"}),
                 status=400,
                 mimetype='application/json'
                 )
-    else:
-        user_does_not_exist = 0x01
 
-    if(id_user is None):
+    if id_user is None:
         id_user = user_name
-    # if identity doesn't exist then create
-    if(exists_openshift_identity(token, openshift_url, id_provider, id_user)):
+
+    identity_exists = exists_openshift_identity(token, openshift_url, id_provider, id_user)
+    if identity_exists:
         r = delete_openshift_identity(token, openshift_url, id_provider, id_user)
-        if(r.status_code != 200 and r.status_code != 201):
+
+        if r.status_code not in [200, 201]:
             return Response(
                 response=json.dumps({"msg": "unable to delete identity (" + id_provider + ")"}),
                 status=400,
                 mimetype='application/json'
                 )
-    else:
-        user_does_not_exist =  user_does_not_exist | 0x02
 
-    if(user_does_not_exist==3):
+    if not user_exists and not identity_exists:
         return Response(
             response=json.dumps({"msg": "user does not currently exist (" + user_name + ")"}),
             status=200,
