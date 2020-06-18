@@ -267,12 +267,8 @@ def delete_moc_user(user_name, full_name=None, id_provider="sso_auth", id_user=N
 def get_resource_quotas(project_name,resource_name):
     (token, openshift_url) = get_token_and_url()
     r=None
-    if(exists_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
-        return Response(
-            response=json.dumps({"msg": " Quota exists (" + resource_name + ")  with project -- (" + project_name + ")"}),
-            status=200,
-            mimetype='application/json'
-            )
+    if(get_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
+        return r.text
     return Response(
             response=json.dumps({"msg": "No Quotas with name  (" + resource_name + ") in project (" + project_name +") "}),
             status=400,
@@ -281,12 +277,12 @@ def get_resource_quotas(project_name,resource_name):
 
 
 
-@application.route("/quota/<project_name>/resourcequota/<resource_name>/cpu/<cpu_limit>/memory/<memory_limit>", methods=['PUT'])
-def create_resource_quota(project_name, resource_name, cpu_limit, memory_limit):
+@application.route("/quota/<project_name>/resourcequota/<resource_name>/cpu/<cpu_limit>/memory/<memory_limit>/<role>", methods=['PUT'])
+def create_resource_quota(project_name, resource_name, cpu_limit, memory_limit,role):
     (token, openshift_url) = get_token_and_url()
     r=None
     if(not exists_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
-        if(create_openshift_resource_quota(token, openshift_url, project_name, resource_name, cpu_limit, memory_limit)):
+        if(create_openshift_resource_quota(token, openshift_url, project_name, resource_name, cpu_limit, memory_limit, role)):
             return Response(
                 response=json.dumps({"msg": "Quota created (" +resource_name+ ")"}),
                 status=200,
@@ -306,6 +302,56 @@ def create_resource_quota(project_name, resource_name, cpu_limit, memory_limit):
                 )
 
 
+@application.route("/quota/<project_name>/resourcequota/<resource_name>/pods/<pods>/configmaps/<configmaps>/pvs/<pvs>", methods=['PUT'])
+def create_object_quota(project_name, resource_name, pods, configmaps, pvs):
+    (token, openshift_url) = get_token_and_url()
+    r=None
+    if(not exists_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
+        if(create_openshift_object_counts_quota(token, openshift_url, project_name, resource_name, pods, configmaps, pvs)):
+            return Response(
+                response=json.dumps({"msg": "Object quota created (" + resource_name+ ")"}),
+                status=200,
+                mimetype='application/json'
+                )
+        else:
+            return Response(
+                    response=json.dumps({"msg": "Unable to create object quotas for project (" + project_name + ") "}),
+                    status=400,
+                    mimetype='application/json'
+                    )
+    else:
+        return Response(
+                response=json.dumps({"msg": "Unable to create object because it already exists (" + resource_name+ " ) "}),
+                status=400,
+                mimetype='application/json'
+                )
+
+
+@application.route("/update-quota/<project_name>/resourcequota/<resource_name>/cpu/<cpu_limit>/memory/<memory_limit>/<role>", methods=['PUT'])
+def update_resource_quota(project_name, resource_name, cpu_limit, memory_limit,role):
+    (token, openshift_url) = get_token_and_url()
+    r=None
+    if(exists_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
+        if(create_openshift_resource_quota(token, openshift_url, project_name, resource_name, cpu_limit, memory_limit,role)):
+            return Response(
+                response=json.dumps({"msg": "Quota updated (" +resource_name+ ")"}),
+                status=200,
+                mimetype='application/json'
+                )
+        else:
+            return Response(
+                    response=json.dumps({"msg": "Unable to update resource quotas for project (" + project_name + ") "}),
+                    status=400,
+                    mimetype='application/json'
+                    )
+    else:
+        return Response(
+                response=json.dumps({"msg": "Unable to update quota because it doesn't exists (" + resource_name+ " ) "}),
+                status=400,
+                mimetype='application/json'
+                )
+
+
 @application.route("/quota/<project_name>/resourcequota/<resource_name>", methods=['DELETE'])
 def delete_resource_quota(project_name, resource_name):
     (token, openshift_url) = get_token_and_url()
@@ -313,11 +359,7 @@ def delete_resource_quota(project_name, resource_name):
     if(exists_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
         r = delete_openshift_resource_quota( token, openshift_url, project_name, resource_name)
         if(r.status_code == 200 or r.status_code == 201):
-            return Response(
-                response=json.dumps({"msg": "quota deleted (" +resource_name+ ")"}),
-                status=200,
-                mimetype='application/json'
-                )
+            return r.text
         return Response(
                 response=json.dumps({"msg": "Unable to delete resource quotas are assosiated with (" + project_name + ") "}),
                 status=400,

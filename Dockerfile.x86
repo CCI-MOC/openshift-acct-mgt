@@ -38,10 +38,6 @@ copy openshift_role.py /app/openshift-acct-mgt/openshift_role.py
 copy openshift_resource_quota.py /app/openshift-acct-mgt/openshift_resource_quota.py
 
 
-copy compute_resource.json /app/openshift-acct-mgt/compute_resource.json
-copy update_quota.json /app/openshift-acct-mgt/update_quota.json
-
-
 
 COPY start.sh /app/openshift-acct-mgt/start.sh
 COPY requirements.txt /app/openshift-acct-mgt/requirements.txt

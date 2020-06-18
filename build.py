@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-
 import subprocess
 import sys
 import re
@@ -52,6 +51,7 @@ def oc_service_account_exists(project, service_account):
         return True
     return False
 
+
 def oc_create_service_account(project, service_account, privledge):
     subprocess.run(['oc', r'-n', project, 'create', 'sa',service_account])
     subprocess.run(['oc', 'adm', 'policy', r'add-cluster-role-to-user', privledge, r'system:serviceaccount:' + project + r':' + service_account])
@@ -64,41 +64,10 @@ def oc_project_exists(project):
         return True
     return False
 
+
 def oc_create_project(project):
     subprocess.run(['oc','new-project',project])
     return True
-
-def oc_quota_exists(project,quota_name):
-    result=subprocess.run(['oc', 'describe', 'quota' , quota_name],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-    if(compare_results(result,r'^'+quota_name)):
-        return True
-    return False
-
-def oc_create_quota(project,quota_name):
-    result=subprocess.run(['oc','create','-n',project,'-f', 'compute_resource.json'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
-    if(compare_results(result,r'^'+quota_name)):
-        return True
-    return False
-
-    #proc=subprocess.Popen(['oc','create','-n',project,'-f','-'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE)
-    #json_str=get_quota_def(project,quota_name)
-    #stdout_value=proc.communicate(json_str.encode())
-    #print('stdout:', repr(stdout_value))
-
-
-def get_quota_def(project,quota_name):
-    quota_def='apiVersion: v1\n' \
-	 +'kind: ResourceQuota\n' \
-	 +'metadata: \n' \
-	 +'  name:' +quota_name+'\n' \
-	 +'spec: \n' \
-	 +'  hard: \n' \
-	 +'    limits.cpu: 4\n' \
-	 +'    limits.memory: 2Gi\n' \
-	 +'    pods: 5\n' \
-	 +'    requests.cpu: 1\n' \
-	 +'    requests.memory: 1Gi\n'
-    return quota_def
 
 
 def oc_route_exists(project,route,host_subdomain):
@@ -117,6 +86,7 @@ def oc_dc_exists(project,dc):
     if(compare_results(result,r'^'+dc)):
         return True
     return False
+
 
 def get_dc_def(openshift_url,microserver_url,project,docker_image):
     dc=""
@@ -266,8 +236,7 @@ def build_and_deploy2(openshift_url, project,microserver_url,host_subdomain,dock
         oc_create_service(project,project)
     if(not oc_route_exists(project, project,host_subdomain)):
         oc_create_route(project,project,host_subdomain,project)
-    if(not oc_quota_exists(project,"compute-resource-quota")):
-        oc_create_quota(project,"compute-resource-quota")
+
 
     #subprocess.run(['oc','-n','acct-mgt','rollout','latest',project])
     #result=subprocess.run(['oc','get','all'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
@@ -277,7 +246,7 @@ def main():
     # export MICROSERVER_URL=https://acct-req.k-apps.osh.massopen.cloud
     # export MICROSERVER_URL=https://acct-mgt-acct-mgt.s-apps.osh.massopen.cloud
     microserver_url='https://acct-mgt-acct-mgt.s-apps.osh.massopen.cloud'
-    project="acct-mgt-test"
+    project="acct-mgt-test-2"
     openshift_url="s-openshift.osh.massopen.cloud:8443"
     #openshift_url="192.168.42.52:8443"
     host_subdomain="s-apps.osh.massopen.cloud"

@@ -24,7 +24,7 @@ def exists_openshift_resource_quota(token,api_url,project_name,resource_name):
     return False
 
 
-def create_openshift_resource_quota(token, api_url, project_name,resource_name,cpu_limit, memory_limit):
+def create_openshift_resource_quota(token, api_url, project_name,resource_name,cpu_limit, memory_limit,role):
     headers = {'Authorization': 'Bearer ' + token,
                'Accept': 'application/json', 'Content-Type': 'application/json'}
     url = 'https://' + api_url + '/api/v1/namespaces/' + project_name + '/resourcequotas'
@@ -38,13 +38,15 @@ def create_openshift_resource_quota(token, api_url, project_name,resource_name,c
         "hard": {
           "limits.cpu": cpu_limit,
           "limits.memory": memory_limit,
-          "pods": "5",
           "requests.cpu": "1",
           "requests.memory": "1Gi"
         }
       }
     }
-    r = requests.post(url, headers=headers, data=json.dumps(quota_def), verify=False)
+    if(role == "add"):
+        r = requests.post(url, headers=headers, data=json.dumps(quota_def), verify=False)
+    if(role == "update"):
+        r = requests.put(url, headers=headers, data=json.dumps(quota_def), verify=False)
     application.logger.debug("url: "+url)
     application.logger.debug("payload: "+json.dumps(quota_def))
     application.logger.debug("cr r: " + str(r.status_code))
@@ -54,19 +56,33 @@ def create_openshift_resource_quota(token, api_url, project_name,resource_name,c
     return False
 
 
-def update_openshift_resource_quota(token,api_url,project_name,resource_name):
-    headers = {'Authorization': 'Bearer ' + token,'Accept': 'application/json', 'Content-Type': 'application/json'}
-    url = 'https://' + api_url + '/api/v1/namespaces/' + project_name + '/resourcequotas/'+ resource_name
-    r = requests.get(url, headers=headers, verify=False)
-    #if(r.status_code == 200 or r.status_code == 201):
-    with open(update_quota.json, 'r') as f:
-    	quota = json.load(f)
-    r = requests.post(url, headers=headers, data=json.dumps(quota), verify=False)
+def create_openshift_object_counts_quota(token, api_url, project_name, resource_name, pods, configmaps, pvs):
+    headers = {'Authorization': 'Bearer ' + token,
+               'Accept': 'application/json', 'Content-Type': 'application/json'}
+    url = 'https://' + api_url + '/api/v1/namespaces/' + project_name + '/resourcequotas'
+    object_def = {
+      "kind": "ResourceQuota",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": resource_name
+      },
+      "spec": {
+        "hard": {
+          "pods": pods,
+          "configmaps": configmaps,
+          "persistentvolumeclaims": pvs
+        }
+      }
+    }
+    r = requests.post(url, headers=headers, data=json.dumps(object_def), verify=False)
     application.logger.debug("url: "+url)
-    application.logger.debug("payload: "+json.dumps(payload))
+    application.logger.debug("payload: "+json.dumps(object_def))
     application.logger.debug("cr r: " + str(r.status_code))
     application.logger.debug("cr r: " + r.text)
-    return r
+    if(r.status_code == 200 or r.status_code == 201):
+        return True
+    return False
+
 
 def get_openshift_resource_quota(token,api_url,project_name,resource_name):
     headers = {'Authorization': 'Bearer ' + token, 'Accept': 'application/json', 'Content-Type': 'application/json'}
@@ -76,24 +92,11 @@ def get_openshift_resource_quota(token,api_url,project_name,resource_name):
     application.logger.debug("cr p: " + str(r.status_code))
     application.logger.debug("cr p: " + r.text)
     return r
-#    if(r.status_code == 200 or r.status_code == 201):
-#	       return r
-#    return False
 
 
 def delete_openshift_resource_quota(token,api_url,project_name,resource_name):
     headers = {'Authorization': 'Bearer ' + token,'Accept': 'application/json', 'Content-Type': 'application/json'}
     url = 'https://' + api_url + '/api/v1/namespaces/' + project_name + '/resourcequotas/'+ resource_name
-    r = requests.delete(url, headers=headers, verify=False)
-    application.logger.debug("url: "+url)
-    application.logger.debug("cr p: " + str(r.status_code))
-    application.logger.debug("cr p: " + r.text)
-    return r
-
-
-def deleteAll_openshift_resource_quota(token,api_url,project_name):
-    headers = {'Authorization': 'Bearer ' + token,'Accept': 'application/json', 'Content-Type': 'application/json'}
-    url = 'https://' + api_url + '/api/v1/namespaces/' + project_name + '/resourcequotas'
     r = requests.delete(url, headers=headers, verify=False)
     application.logger.debug("url: "+url)
     application.logger.debug("cr p: " + str(r.status_code))
