@@ -159,7 +159,7 @@ def ms_check_project(acct_mgt_url, project_name, auth_opts=[]):
 #
 #
 def ms_create_project(acct_mgt_url, project_uuid, displayNameStr, auth_opts=[]):
-    cmd=""
+    cmd = ""
     if displayNameStr is None:
         cmd = (
             ["curl", "-X", "PUT", "-kv",]
@@ -203,7 +203,9 @@ def ms_check_user(acct_mgt_url, user_name, auth_opts=[]):
 def ms_create_user(acct_mgt_url, user_name, auth_opts=[]):
 
     result = subprocess.run(
-        ["curl", "-X", "PUT", "-kv"] + auth_opts + [ acct_mgt_url + "/users/" + user_name],
+        ["curl", "-X", "PUT", "-kv"]
+        + auth_opts
+        + [acct_mgt_url + "/users/" + user_name],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
@@ -278,9 +280,7 @@ def ms_user_project_remove_role(
             + role
         ]
     )
-    result = subprocess.run(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-    )  
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,)
     return compare_results(result, success_pattern)
 
 
