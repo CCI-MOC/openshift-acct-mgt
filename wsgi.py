@@ -26,28 +26,26 @@ if __name__ != "__main__":
 def get_openshift():
     version = os.environ["OPENSHIFT_VERSION"]
     url = os.environ["OPENSHIFT_URL"]
-    if version == 3:
-        shift = openshift_3_x(url, version, application.logger)
-        application.logger.info("using Openshift ver 3")
-    else:
-        shift = openshift_4_x(url, version, application.logger)
-        application.logger.info("using Openshift ver 4")
     with open("/var/run/secrets/kubernetes.io/serviceaccount/token", "r") as file:
         token = file.read()
-        shift.set_token(token)
-        application.logger.info("Attached token to shift")
+        if version == '3':
+            shift = openshift_3_x(url, token, application.logger)
+            application.logger.info("using Openshift ver 3")
+        else:
+            shift = openshift_4_x(url, token, application.logger)
+            application.logger.info("using Openshift ver 4")
         return shift
-    return None
+    application.logger.info("Unable to open service account token file, shift not initialized")
 
 
 @auth.verify_password
 def verify_password(username, password):
-    user_str = ""
     with open("/app/auth/users", "r") as f:
         user_str = f.read()
-    user = user_str.split(" ", 1)
-    if username == user[0] and password == user[1]:
-        return username
+    if(user_str is not None and user_str.len() > 0):
+        user = user_str.split(" ", 1)
+        if username == user[0] and password == user[1]:
+            return username
 
 
 @application.route(
@@ -233,7 +231,7 @@ def create_moc_user(user_name, full_name=None, id_provider="moc-sso", id_user=No
     shift = get_openshift()
     r = None
     # full name in payload
-    user_exists = 0x00
+    user_exists = False
     # use case if User doesn't exist, then create
     if not shift.user_exists(user_name):
         r = shift.create_user(user_name, full_name)
@@ -246,11 +244,12 @@ def create_moc_user(user_name, full_name=None, id_provider="moc-sso", id_user=No
                 mimetype="application/json",
             )
     else:
-        user_exists = user_exists | 0x01
+        user_exists = True
 
     if id_user is None:
         id_user = user_name
 
+    identity_exists = False
     # if identity doesn't exist then create
     if not shift.identity_exists(id_provider, id_user):
         r = shift.create_identity(id_provider, id_user)
@@ -263,8 +262,10 @@ def create_moc_user(user_name, full_name=None, id_provider="moc-sso", id_user=No
                 mimetype="application/json",
             )
     else:
-        user_exists = user_exists | 0x02
+        identity_exists = True
+
     # creates the useridenitymapping
+    user_identity_mapping_exists = False
     if not shift.useridentitymapping_exists(user_name, id_provider, id_user):
         r = shift.create_useridentitymapping(user_name, id_provider, id_user)
         if r.status_code != 200 and r.status_code != 201:
@@ -280,9 +281,9 @@ def create_moc_user(user_name, full_name=None, id_provider="moc-sso", id_user=No
                 mimetype="application/json",
             )
     else:
-        user_exists = user_exists | 0x04
+        user_identity_mapping_exists = True
 
-    if user_exists == 7:
+    if user_exists and identity_exists and user_identity_mapping_exists:
         return Response(
             response=json.dumps({"msg": "user currently exists (" + user_name + ")"}),
             status=200,
