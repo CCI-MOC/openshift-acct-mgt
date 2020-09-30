@@ -3,3 +3,5 @@ gunicorn
 Flask
 kubernetes
 openshift
+mod_wsgi 
+Flask-HTTPAuth

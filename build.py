@@ -137,16 +137,20 @@ def oc_create_service_account(project, service_account, cluster_role):
     # short circuit this as a work-a-round
     # TODO: fix oc_sa_role_exists
     if True or not oc_sa_role_exists(project, service_account, cluster_role):
+        # oc adm policy add-cluster-role-to-user cluster-admin -n acct-mgt-2 -z acct-mgt-2-sa
         result = subprocess.run(
             [
                 "oc",
                 "-o",
                 "json",
+                "-n",
+                project,
                 "adm",
                 "policy",
                 r"add-cluster-role-to-user",
                 cluster_role,
-                r"system:serviceaccount:" + project + r":" + service_account,
+                "-z",
+                service_account,
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

@@ -15,17 +15,9 @@ RUN rpm --initdb \
  && yum clean all \
  && yum -y install make gcc libffi-devel openssl-devel bzip2-devel wget wireshark git python3 httpd httpd-devel httpd-tools  python3-devel python3-pip \ 
  && pip3 install --upgrade pip \
- && pip3 install setuptools \
- && pip3 install mod_wsgi \
- && pip3 install Flask-HTTPAuth \
  && yum install -y cpan
 
 COPY wsgi.py /app/openshift-acct-mgt/wsgi.py
-COPY openshift_user.py /app/openshift-acct-mgt/openshift_user.py
-COPY openshift_identity.py /app/openshift-acct-mgt/openshift_identity.py
-COPY openshift_rolebindings.py /app/openshift-acct-mgt/openshift_rolebindings.py
-COPY openshift_project.py /app/openshift-acct-mgt/openshift_project.py
-COPY openshift_role.py /app/openshift-acct-mgt/openshift_role.py
 COPY openshift.py /app/openshift-acct-mgt/openshift.py
 
 COPY start.sh /app/openshift-acct-mgt/start.sh
@@ -50,8 +42,6 @@ RUN chmod -R g+rwX /opt && \
     chmod -R g+rwX /etc/httpd/conf.d && \
     chgrp -R 0 /etc/httpd/conf.d && \
     sed -i -e "s|Listen 80|Listen 8080|g;" /etc/httpd/conf/httpd.conf
-
-EXPOSE 8080 8443 
 
 USER 1001
 

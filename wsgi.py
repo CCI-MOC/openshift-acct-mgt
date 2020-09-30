@@ -1,26 +1,18 @@
-import kubernetes
-import pprint
 import logging
-import requests
 import json
-import re
 import os
-from flask import Flask, redirect, url_for, request, Response
+from flask import Flask, request, Response
 from flask_httpauth import HTTPBasicAuth
+import openshift
 
-# from flask_restful import reqparse
-
-import sys
-
-from openshift import *
-
-application = Flask(__name__)
-auth = HTTPBasicAuth()
+APP = Flask(__name__)
+AUTH = HTTPBasicAuth()
 
 if __name__ != "__main__":
-    gunicorn_logger = logging.getLogger("gunicorn.error")
-    application.logger.handlers = gunicorn_logger.handlers
-    application.logger.setLevel(gunicorn_logger.level)
+    APP.logger = logging.getLogger("gunicorn.error")
+    APP.logger.setLevel(
+        20
+    )  # INFO = 20 see (https://docs.python.org/3/library/logging.html#levels)
 
 
 def get_openshift():
@@ -28,30 +20,29 @@ def get_openshift():
     url = os.environ["OPENSHIFT_URL"]
     with open("/var/run/secrets/kubernetes.io/serviceaccount/token", "r") as file:
         token = file.read()
-        if version == '3':
-            shift = openshift_3_x(url, token, application.logger)
-            application.logger.info("using Openshift ver 3")
+        if version == "3":
+            shift = openshift.openshift_3_x(url, token, APP.logger)
+            APP.logger.info("using Openshift ver 3")
         else:
-            shift = openshift_4_x(url, token, application.logger)
-            application.logger.info("using Openshift ver 4")
+            shift = openshift.openshift_4_x(url, token, APP.logger)
+            APP.logger.info("using Openshift ver 4")
         return shift
-    application.logger.info("Unable to open service account token file, shift not initialized")
+    APP.logger.info("Unable to open service account token file, shift not initialized")
 
 
-@auth.verify_password
+@AUTH.verify_password
 def verify_password(username, password):
-    with open("/app/auth/users", "r") as f:
-        user_str = f.read()
-    if(user_str is not None and user_str.len() > 0):
+    with open("/app/auth/users", "r") as my_file:
+        user_str = my_file.read()
+    if user_str:
         user = user_str.split(" ", 1)
         if username == user[0] and password == user[1]:
             return username
+    return None
 
 
-@application.route(
-    "/users/<user_name>/projects/<project_name>/roles/<role>", methods=["GET"]
-)
-@auth.login_required
+@APP.route("/users/<user_name>/projects/<project_name>/roles/<role>", methods=["GET"])
+@AUTH.login_required
 def get_moc_rolebindings(project_name, user_name, role):
     # role can be one of Admin, Member, Reader
     shift = get_openshift()
@@ -88,32 +79,29 @@ def get_moc_rolebindings(project_name, user_name, role):
     )
 
 
-@application.route(
-    "/users/<user_name>/projects/<project_name>/roles/<role>", methods=["PUT"]
-)
-@auth.login_required
+@APP.route("/users/<user_name>/projects/<project_name>/roles/<role>", methods=["PUT"])
+@AUTH.login_required
 def create_moc_rolebindings(project_name, user_name, role):
     # role can be one of Admin, Member, Reader
     shift = get_openshift()
-    r = shift.update_user_role_project(project_name, user_name, role, "add")
-    return r
+    result = shift.update_user_role_project(project_name, user_name, role, "add")
+    return result
 
 
-@application.route(
+@APP.route(
     "/users/<user_name>/projects/<project_name>/roles/<role>", methods=["DELETE"]
 )
-@auth.login_required
+@AUTH.login_required
 def delete_moc_rolebindings(project_name, user_name, role):
     # role can be one of Admin, Member, Reader
     shift = get_openshift()
-    r = shift.update_user_role_project(project_name, user_name, role, "del")
-    return r
+    result = shift.update_user_role_project(project_name, user_name, role, "del")
+    return result
 
 
-@application.route("/projects/<project_uuid>", methods=["GET"])
-@application.route("/projects/<project_uuid>/owner/<user_name>", methods=["GET"])
-@auth.login_required
-def get_moc_project(project_uuid, user_name=None):
+@APP.route("/projects/<project_uuid>", methods=["GET"])
+@AUTH.login_required
+def get_moc_project(project_uuid):
     shift = get_openshift()
     if shift.project_exists(project_uuid):
         return Response(
@@ -128,9 +116,9 @@ def get_moc_project(project_uuid, user_name=None):
     )
 
 
-@application.route("/projects/<project_uuid>", methods=["PUT"])
-@application.route("/projects/<project_uuid>/owner/<user_name>", methods=["PUT"])
-@auth.login_required
+@APP.route("/projects/<project_uuid>", methods=["PUT"])
+@APP.route("/projects/<project_uuid>/owner/<user_name>", methods=["PUT"])
+@AUTH.login_required
 def create_moc_project(project_uuid, user_name=None):
     shift = get_openshift()
     # first check the project_name is a valid openshift project name
@@ -154,12 +142,12 @@ def create_moc_project(project_uuid, user_name=None):
             req_json = request.get_json(force=True)
             if "displayName" in req_json:
                 project_name = req_json["displayName"]
-            application.logger.debug("create project json: " + project_name)
+            APP.logger.debug("create project json: " + project_name)
         else:
-            application.logger.debug("create project json: None")
+            APP.logger.debug("create project json: None")
 
-        r = shift.create_project(project_uuid, project_name, user_name)
-        if r.status_code == 200 or r.status_code == 201:
+        result = shift.create_project(project_uuid, project_name, user_name)
+        if result.status_code == 200 or result.status_code == 201:
             return Response(
                 response=json.dumps({"msg": "project created (" + project_uuid + ")"}),
                 status=200,
@@ -179,13 +167,13 @@ def create_moc_project(project_uuid, user_name=None):
     )
 
 
-@application.route("/projects/<project_uuid>", methods=["DELETE"])
-@auth.login_required
+@APP.route("/projects/<project_uuid>", methods=["DELETE"])
+@AUTH.login_required
 def delete_moc_project(project_uuid):
     shift = get_openshift()
     if shift.project_exists(project_uuid):
-        r = shift.delete_project(project_uuid)
-        if r.status_code == 200 or r.status_code == 201:
+        result = shift.delete_project(project_uuid)
+        if result.status_code == 200 or result.status_code == 201:
             return Response(
                 response=json.dumps({"msg": "project deleted (" + project_uuid + ")"}),
                 status=200,
@@ -207,11 +195,10 @@ def delete_moc_project(project_uuid):
     )
 
 
-@application.route("/users/<user_name>", methods=["GET"])
-@auth.login_required
-def get_moc_user(user_name, full_name=None, id_provider="moc-sso", id_user=None):
+@APP.route("/users/<user_name>", methods=["GET"])
+@AUTH.login_required
+def get_moc_user(user_name):
     shift = get_openshift()
-    r = None
     if shift.user_exists(user_name):
         return Response(
             response=json.dumps({"msg": "user (" + user_name + ") exists"}),
@@ -225,17 +212,23 @@ def get_moc_user(user_name, full_name=None, id_provider="moc-sso", id_user=None)
     )
 
 
-@application.route("/users/<user_name>", methods=["PUT"])
-@auth.login_required
-def create_moc_user(user_name, full_name=None, id_provider="moc-sso", id_user=None):
+@APP.route("/users/<user_name>", methods=["PUT"])
+@AUTH.login_required
+def create_moc_user(user_name):
+    # these three values should be added to generalize this function
+    # full_name    - the full name of the user as it is really convenient to confirm who the account belongs to
+    # id_provider  - the id provider (was sso_auth, now is moc-sso)
+    # id_user      - the user name associated with the id provider.  can be used to map muliple sso users to a an account as people don't always remember which sso account they are logged in as
+    id_provider = "moc-sso"
+    full_name = user_name
+    id_user = user_name  # until we support different user names see above.
+
     shift = get_openshift()
-    r = None
-    # full name in payload
     user_exists = False
     # use case if User doesn't exist, then create
     if not shift.user_exists(user_name):
-        r = shift.create_user(user_name, full_name)
-        if r.status_code != 200 and r.status_code != 201:
+        result = shift.create_user(user_name, full_name)
+        if result.status_code != 200 and result.status_code != 201:
             return Response(
                 response=json.dumps(
                     {"msg": "unable to create openshift user (" + user_name + ") 1"}
@@ -246,14 +239,11 @@ def create_moc_user(user_name, full_name=None, id_provider="moc-sso", id_user=No
     else:
         user_exists = True
 
-    if id_user is None:
-        id_user = user_name
-
     identity_exists = False
     # if identity doesn't exist then create
     if not shift.identity_exists(id_provider, id_user):
-        r = shift.create_identity(id_provider, id_user)
-        if r.status_code != 200 and r.status_code != 201:
+        result = shift.create_identity(id_provider, id_user)
+        if result.status_code != 200 and result.status_code != 201:
             return Response(
                 response=json.dumps(
                     {"msg": "unable to create openshift identity (" + id_provider + ")"}
@@ -267,8 +257,8 @@ def create_moc_user(user_name, full_name=None, id_provider="moc-sso", id_user=No
     # creates the useridenitymapping
     user_identity_mapping_exists = False
     if not shift.useridentitymapping_exists(user_name, id_provider, id_user):
-        r = shift.create_useridentitymapping(user_name, id_provider, id_user)
-        if r.status_code != 200 and r.status_code != 201:
+        result = shift.create_useridentitymapping(user_name, id_provider, id_user)
+        if result.status_code != 200 and result.status_code != 201:
             return Response(
                 response=json.dumps(
                     {
@@ -296,16 +286,15 @@ def create_moc_user(user_name, full_name=None, id_provider="moc-sso", id_user=No
     )
 
 
-@application.route("/users/<user_name>", methods=["DELETE"])
-@auth.login_required
+@APP.route("/users/<user_name>", methods=["DELETE"])
+@AUTH.login_required
 def delete_moc_user(user_name):
     shift = get_openshift()
-    r = None
     user_does_not_exist = 0
     # use case if User exists then delete
     if shift.user_exists(user_name):
-        r = shift.delete_user(user_name)
-        if r.status_code != 200 and r.status_code != 201:
+        result = shift.delete_user(user_name)
+        if result.status_code != 200 and result.status_code != 201:
             return Response(
                 response=json.dumps(
                     {"msg": "unable to delete User (" + user_name + ") 1"}
@@ -324,8 +313,8 @@ def delete_moc_user(user_name):
     id_provider = "sso_auth"
 
     if shift.identity_exists(id_provider, id_user):
-        r = shift.delete_identity(id_provider, id_user)
-        if r.status_code != 200 and r.status_code != 201:
+        result = shift.delete_identity(id_provider, id_user)
+        if result.status_code != 200 and result.status_code != 201:
             return Response(
                 response=json.dumps(
                     {"msg": "unable to delete identity (" + id_provider + ")"}
@@ -352,4 +341,4 @@ def delete_moc_user(user_name):
 
 
 if __name__ == "__main__":
-    application.run()
+    APP.run()
