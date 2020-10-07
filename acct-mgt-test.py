@@ -495,9 +495,10 @@ def test_project_user_role(acct_mgt_url, auth_opts):
         ),
         "Role unable to be added",
     )
-    # TODO: should write a oc command to check this, but for rolebindings
-    #       this cannot be done in the same way as for users and projects
-    #       for now, rely on the microserver.
+
+    # should write a oc command to check this, but for rolebindings
+    # this cannot be done in the same way as for users and projects
+    # for now, rely on the microserver.
     check.is_true(
         ms_user_project_get_role(
             acct_mgt_url,
