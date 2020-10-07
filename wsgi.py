@@ -21,10 +21,10 @@ def get_openshift():
     with open("/var/run/secrets/kubernetes.io/serviceaccount/token", "r") as file:
         token = file.read()
         if version == "3":
-            shift = openshift.openshift_3_x(url, token, APP.logger)
+            shift = openshift.OpenShift3x(url, token, APP.logger)
             APP.logger.info("using Openshift ver 3")
         else:
-            shift = openshift.openshift_4_x(url, token, APP.logger)
+            shift = openshift.OpenShift4x(url, token, APP.logger)
             APP.logger.info("using Openshift ver 4")
         return shift
     APP.logger.info("Unable to open service account token file, shift not initialized")
