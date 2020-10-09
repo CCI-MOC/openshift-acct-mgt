@@ -1,50 +1,16 @@
-# FROM registry.redhat.io/rhel  
-# FROM centos7
-FROM fedora:30
+FROM python:3.8
 
-# this is for fedora:30 power9
-# Bug https://bugzilla.redhat.com/show_bug.cgi?id=1694411
-#RUN echo "zchunk=False" >> /etc/dnf/dnf.conf && \
-#    dnf install -y git gcc httpd python3 python3-pip python3-devel \
-#        python3-mod_wsgi mod_auth_openidc libffi-devel openssl-devel
-
+RUN mkdir -p /app
 WORKDIR /app
 
+COPY wsgi.py /app/wsgi.py
+COPY openshift.py /app/openshift.py
+COPY start.sh /app/start.sh
+COPY requirements.txt /app/requirements.txt
+COPY config.py /app/config.py
 
-RUN rpm --initdb \
- && yum clean all \
- && yum -y install make gcc libffi-devel openssl-devel bzip2-devel wget wireshark git python3 httpd httpd-devel httpd-tools  python3-devel python3-pip \ 
- && pip3 install --upgrade pip \
- && yum install -y cpan
+RUN cd /app \
+ && pip3 install -r requirements.txt 
 
-COPY wsgi.py /app/openshift-acct-mgt/wsgi.py
-COPY openshift.py /app/openshift-acct-mgt/openshift.py
-
-COPY start.sh /app/openshift-acct-mgt/start.sh
-COPY requirements.txt /app/openshift-acct-mgt/requirements.txt
-COPY config.py /app/openshift-acct-mgt/config.py
-
-RUN cd /app/openshift-acct-mgt \
- && pip3 install -r requirements.txt \
- && chmod -R 777 /app \
- && chmod -R 777 /usr
-
-
-# Note(knikolla): This is required to support the random
-# user IDs that OpenShift enforces.
-# https://docs.openshift.com/enterprise/3.2/creating_images/guidelines.html
-RUN chmod -R g+rwX /opt && \
-    chgrp -R 0 /opt && \
-    chmod -R g+rwX /run/httpd && \
-    chgrp -R 0 /run/httpd && \
-    chmod -R g+rwX /etc/httpd/logs && \
-    chgrp -R 0 /etc/httpd/logs && \
-    chmod -R g+rwX /etc/httpd/conf.d && \
-    chgrp -R 0 /etc/httpd/conf.d && \
-    sed -i -e "s|Listen 80|Listen 8080|g;" /etc/httpd/conf/httpd.conf
-
-USER 1001
-
-WORKDIR /app/openshift-acct-mgt
-CMD ["/app/openshift-acct-mgt/start.sh"]
+CMD ["/app/start.sh"]
 

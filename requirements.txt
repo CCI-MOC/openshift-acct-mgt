@@ -1,7 +1,5 @@
-setuptools>=18.5
 gunicorn
 Flask
 kubernetes
 openshift
-mod_wsgi 
-Flask-HTTPAuth
+flask_httpauth
