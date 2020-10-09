@@ -3,7 +3,7 @@ import json
 import os
 from flask import Flask, request, Response
 from flask_httpauth import HTTPBasicAuth
-import openshift
+import moc_openshift
 
 APP = Flask(__name__)
 AUTH = HTTPBasicAuth()
@@ -21,10 +21,10 @@ def get_openshift():
     with open("/var/run/secrets/kubernetes.io/serviceaccount/token", "r") as file:
         token = file.read()
         if version == "3":
-            shift = openshift.OpenShift3x(url, token, APP.logger)
+            shift = moc_openshift.MocOpenShift3x(url, token, APP.logger)
             APP.logger.info("using Openshift ver 3")
         else:
-            shift = openshift.OpenShift4x(url, token, APP.logger)
+            shift = moc_openshift.MocOpenShift4x(url, token, APP.logger)
             APP.logger.info("using Openshift ver 4")
         return shift
     APP.logger.info("Unable to open service account token file, shift not initialized")
