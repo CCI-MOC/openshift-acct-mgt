@@ -374,7 +374,7 @@ class MocOpenShift3x(MocOpenShift):
 
     # member functions for projects
     def project_exists(self, project_name):
-        url = self.get_url() + "/oapi/v1/projects/" + project_name
+        url = f"{self.get_url()}/oapi/v1/projects/{project_name}"
         result = self.get_request(url, True)
         if result.status_code == 200 or result.status_code == 201:
             return True
@@ -382,7 +382,7 @@ class MocOpenShift3x(MocOpenShift):
 
     def create_project(self, project_name, display_name, user_name):
         # check project_name
-        url = self.get_url() + "/oapi/v1/projects"
+        url = f"{self.get_url()}/oapi/v1/projects"
         payload = {
             "kind": "Project",
             "apiVersion": "v1",
@@ -398,16 +398,16 @@ class MocOpenShift3x(MocOpenShift):
 
     def delete_project(self, project_name):
         # check project_name
-        url = self.get_url() + "/oapi/v1/projects/" + project_name
+        url = f"{self.get_url()}/oapi/v1/projects/{project_name}"
         return self.del_request(url, True)
 
     def get_user(self, user_name):
-        url = self.get_url() + "/oapi/v1/users/" + user_name
+        url = f"{self.get_url()}/oapi/v1/users/{user_name}"
         return self.get_request(url, True)
 
     # member functions for users
     def create_user(self, user_name, full_name):
-        url = self.get_url() + "/oapi/v1/users"
+        url = f"{self.get_url()}/oapi/v1/users"
         payload = {
             "kind": "User",
             "apiVersion": "v1",
@@ -418,19 +418,19 @@ class MocOpenShift3x(MocOpenShift):
         return result
 
     def delete_user(self, user_name):
-        url = self.get_url() + "/oapi/v1/users/" + user_name
+        url = f"{self.get_url()}/oapi/v1/users/{user_name}"
         return self.del_request(url, None, True)
 
     # member functions for identities
     def identity_exists(self, id_provider, id_user):
-        url = self.get_url() + "/oapi/v1/identities/" + id_provider + ":" + id_user
+        url = f"{self.get_url()}/oapi/v1/identities/{id_provider}:{id_user}"
         result = self.get_request(url, True)
         if result.status_code == 200 or result.status_code == 201:
             return True
         return False
 
     def create_identity(self, id_provider, id_user):
-        url = self.get_url() + "/oapi/v1/identities"
+        url = f"{self.get_url()}/oapi/v1/identities"
         payload = {
             "kind": "Identity",
             "apiVersion": "v1",
@@ -440,7 +440,7 @@ class MocOpenShift3x(MocOpenShift):
         return self.post_request(url, payload, True)
 
     def delete_identity(self, id_provider, id_user):
-        url = self.get_url() + "/oapi/v1/identities"
+        url = f"{self.get_url()}/oapi/v1/identities"
         payload = {
             "kind": "DeleteOptions",
             "apiVersion": "v1",
@@ -451,7 +451,7 @@ class MocOpenShift3x(MocOpenShift):
         return self.del_request(url, payload, True)
 
     def create_useridentitymapping(self, user_name, id_provider, id_user):
-        url = self.get_url() + "/oapi/v1/useridentitymappings"
+        url = f"{self.get_url()}/oapi/v1/useridentitymappings"
         payload = {
             "kind": "UserIdentityMapping",
             "apiVersion": "v1",
@@ -467,24 +467,18 @@ class MocOpenShift3x(MocOpenShift):
     #
     # This just returns the list
     def get_rolebindings(self, project_name, role):
-        url = (
-            self.get_url()
-            + "/oapi/v1/namespaces/"
-            + project_name
-            + "/rolebindings/"
-            + role
-        )
+        url = f"{self.get_url()}/oapi/v1/namespaces/{project_name}/rolebindings/{role}"
         result = self.get_request(url, True)
         self.logger.info("get rolebindings: " + result.text)
         return result
 
     def list_rolebindings(self, project_name):
-        url = self.get_url() + "/oapi/v1/namespaces/" + project_name + "/rolebindings"
+        url = f"{self.get_url()}/oapi/v1/namespaces/{project_name}/rolebindings"
         result = self.get_request(url, True)
         return result
 
     def create_rolebindings(self, project_name, user_name, role):
-        url = self.get_url() + "/oapi/v1/namespaces/" + project_name + "/rolebindings"
+        url = f"{self.get_url()}/oapi/v1/namespaces/{project_name}/rolebindings"
         payload = {
             "kind": "RoleBinding",
             "apiVersion": "v1",
@@ -496,13 +490,7 @@ class MocOpenShift3x(MocOpenShift):
         return self.post_request(url, payload, True)
 
     def update_rolebindings(self, project_name, role, rolebindings_json):
-        url = (
-            self.get_url()
-            + "/oapi/v1/namespaces/"
-            + project_name
-            + "/rolebindings/"
-            + role
-        )
+        url = f"{self.get_url()}/oapi/v1/namespaces/{project_name}/rolebindings/{role}"
         # need to eliminate some fields that might be there
         payload = {}
         for key in rolebindings_json:
@@ -521,7 +509,7 @@ class MocOpenShift4x(MocOpenShift):
 
     # member functions for projects
     def project_exists(self, project_name):
-        url = self.get_url() + "/apis/project.openshift.io/v1/projects/" + project_name
+        url = f"{self.get_url()}/apis/project.openshift.io/v1/projects/{project_name}"
         result = self.get_request(url, True)
         if result.status_code == 200 or result.status_code == 201:
             return True
@@ -529,7 +517,7 @@ class MocOpenShift4x(MocOpenShift):
 
     def create_project(self, project_name, display_name, user_name):
         # check project_name
-        url = self.get_url() + "/apis/project.openshift.io/v1/projects/"
+        url = f"{self.get_url()}/apis/project.openshift.io/v1/projects/"
         payload = {
             "kind": "Project",
             "apiVersion": "project.openshift.io/v1",
@@ -545,16 +533,16 @@ class MocOpenShift4x(MocOpenShift):
 
     def delete_project(self, project_name):
         # check project_name
-        url = self.get_url() + "/apis/project.openshift.io/v1/projects/" + project_name
+        url = f"{self.get_url()}/apis/project.openshift.io/v1/projects/{project_name}"
         return self.del_request(url, None, True)
 
     def get_user(self, user_name):
-        url = self.get_url() + "/apis/user.openshift.io/v1/users/" + user_name
+        url = f"{self.get_url()}/apis/user.openshift.io/v1/users/{user_name}"
         return self.get_request(url, True)
 
     # member functions for users
     def create_user(self, user_name, full_name):
-        url = self.get_url() + "/apis/user.openshift.io/v1/users"
+        url = f"{self.get_url()}/apis/user.openshift.io/v1/users"
         payload = {
             "kind": "User",
             "apiVersion": "user.openshift.io/v1",
@@ -564,25 +552,19 @@ class MocOpenShift4x(MocOpenShift):
         return self.post_request(url, payload, True)
 
     def delete_user(self, user_name):
-        url = self.get_url() + "/apis/user.openshift.io/v1/users/" + user_name
+        url = f"{self.get_url()}/apis/user.openshift.io/v1/users/{user_name}"
         return self.del_request(url, None, True)
 
     # member functions for identities
     def identity_exists(self, id_provider, id_user):
-        url = (
-            self.get_url()
-            + "/apis/user.openshift.io/v1/identities/"
-            + id_provider
-            + ":"
-            + id_user
-        )
+        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{id_provider}:{id_user}"
         result = self.get_request(url, True)
         if result.status_code == 200 or result.status_code == 201:
             return True
         return False
 
     def create_identity(self, id_provider, id_user):
-        url = self.get_url() + "/apis/user.openshift.io/v1/identities"
+        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities"
         payload = {
             "kind": "Identity",
             "apiVersion": "user.openshift.io/v1",
@@ -592,13 +574,7 @@ class MocOpenShift4x(MocOpenShift):
         return self.post_request(url, payload, True)
 
     def delete_identity(self, id_provider, id_user):
-        url = (
-            self.get_url()
-            + "/apis/user.openshift.io/v1/identities/"
-            + id_provider
-            + ":"
-            + id_user
-        )
+        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{id_provider}:{id_user}"
         payload = {
             "kind": "DeleteOptions",
             "apiVersion": "user.openshift.io/v1",
@@ -609,7 +585,7 @@ class MocOpenShift4x(MocOpenShift):
         return self.del_request(url, payload, True)
 
     def create_useridentitymapping(self, user_name, id_provider, id_user):
-        url = self.get_url() + "/apis/user.openshift.io/v1/useridentitymappings"
+        url = f"{self.get_url()}/apis/user.openshift.io/v1/useridentitymappings"
         payload = {
             "kind": "UserIdentityMapping",
             "apiVersion": "user.openshift.io/v1",
@@ -620,34 +596,18 @@ class MocOpenShift4x(MocOpenShift):
 
     # member functions to associate roles for users on projects
     def get_rolebindings(self, project_name, role):
-        url = (
-            self.get_url()
-            + "/apis/authorization.openshift.io/v1/namespaces/"
-            + project_name
-            + "/rolebindings/"
-            + role
-        )
+        url = f"{self.get_url()}/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings/{role}"
         result = self.get_request(url, True)
         self.logger.warning("get rolebindings: " + result.text)
         return result
 
     def list_rolebindings(self, project_name):
-        url = (
-            self.get_url()
-            + "/apis/authorization.openshift.io/v1/namespaces/"
-            + project_name
-            + "/rolebindings"
-        )
+        url = f"{self.get_url()}/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings"
         result = self.get_request(url, True)
         return result
 
     def create_rolebindings(self, project_name, user_name, role):
-        url = (
-            self.get_url()
-            + "/apis/authorization.openshift.io/v1/namespaces/"
-            + project_name
-            + "/rolebindings"
-        )
+        url = f"{self.get_url()}/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings"
         payload = {
             "kind": "RoleBinding",
             "apiVersion": "authorization.openshift.io/v1",
@@ -659,13 +619,7 @@ class MocOpenShift4x(MocOpenShift):
         return self.post_request(url, payload, True)
 
     def update_rolebindings(self, project_name, role, rolebindings_json):
-        url = (
-            self.get_url()
-            + "/apis/authorization.openshift.io/v1/namespaces/"
-            + project_name
-            + "/rolebindings/"
-            + role
-        )
+        url = f"{self.get_url()}/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings/{role}"
         # need to eliminate some fields that might be there
         payload = {}
         for key in rolebindings_json:

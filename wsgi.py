@@ -10,9 +10,8 @@ AUTH = HTTPBasicAuth()
 
 if __name__ != "__main__":
     APP.logger = logging.getLogger("gunicorn.error")
-    APP.logger.setLevel(
-        20
-    )  # INFO = 20 see (https://docs.python.org/3/library/logging.html#levels)
+    # logger level INFO = 20 see (https://docs.python.org/3/library/logging.html#levels)
+    APP.logger.setLevel(20)
 
 
 def get_openshift():
@@ -49,30 +48,14 @@ def get_moc_rolebindings(project_name, user_name, role):
     if shift.user_rolebinding_exists(user_name, project_name, role):
         return Response(
             response=json.dumps(
-                {
-                    "msg": "user role exists ("
-                    + project_name
-                    + ","
-                    + user_name
-                    + ","
-                    + role
-                    + ")"
-                }
+                {"msg": f"user role exists ({project_name},{user_name},{role})"}
             ),
             status=200,
             mimetype="application/json",
         )
     return Response(
         response=json.dumps(
-            {
-                "msg": "user role does not exists ("
-                + project_name
-                + ","
-                + user_name
-                + ","
-                + role
-                + ")"
-            }
+            {"msg": f"user role does not exists ({project_name},{user_name},{role})"}
         ),
         status=404,
         mimetype="application/json",
@@ -105,12 +88,12 @@ def get_moc_project(project_uuid):
     shift = get_openshift()
     if shift.project_exists(project_uuid):
         return Response(
-            response=json.dumps({"msg": "project exists (" + project_uuid + ")"}),
+            response=json.dumps({"msg": f"project exists ({project_uuid})"}),
             status=200,
             mimetype="application/json",
         )
     return Response(
-        response=json.dumps({"msg": "project does not exist (" + project_uuid + ")"}),
+        response=json.dumps({"msg": f"project does not exist ({project_uuid})"}),
         status=400,
         mimetype="application/json",
     )
@@ -149,19 +132,19 @@ def create_moc_project(project_uuid, user_name=None):
         result = shift.create_project(project_uuid, project_name, user_name)
         if result.status_code == 200 or result.status_code == 201:
             return Response(
-                response=json.dumps({"msg": "project created (" + project_uuid + ")"}),
+                response=json.dumps({"msg": f"project created ({project_uuid})"}),
                 status=200,
                 mimetype="application/json",
             )
         return Response(
             response=json.dumps(
-                {"msg": "project unabled to be created (" + project_uuid + ")"}
+                {"msg": f"project unabled to be created ({project_uuid})"}
             ),
             status=400,
             mimetype="application/json",
         )
     return Response(
-        response=json.dumps({"msg": "project currently exist (" + project_uuid + ")"}),
+        response=json.dumps({"msg": f"project currently exist ({project_uuid})"}),
         status=400,
         mimetype="application/json",
     )
@@ -175,20 +158,20 @@ def delete_moc_project(project_uuid):
         result = shift.delete_project(project_uuid)
         if result.status_code == 200 or result.status_code == 201:
             return Response(
-                response=json.dumps({"msg": "project deleted (" + project_uuid + ")"}),
+                response=json.dumps({"msg": f"project deleted ({project_uuid})"}),
                 status=200,
                 mimetype="application/json",
             )
         return Response(
             response=json.dumps(
-                {"msg": "project unabled to be deleted (" + project_uuid + ")"}
+                {"msg": f"project unabled to be deleted ({project_uuid})"}
             ),
             status=400,
             mimetype="application/json",
         )
     return Response(
         response=json.dumps(
-            {"msg": "unable to delete, project does not exist(" + project_uuid + ")"}
+            {"msg": f"unable to delete, project does not exist ({project_uuid})"}
         ),
         status=400,
         mimetype="application/json",
@@ -201,12 +184,12 @@ def get_moc_user(user_name):
     shift = get_openshift()
     if shift.user_exists(user_name):
         return Response(
-            response=json.dumps({"msg": "user (" + user_name + ") exists"}),
+            response=json.dumps({"msg": f"user ({user_name}) exists"}),
             status=200,
             mimetype="application/json",
         )
     return Response(
-        response=json.dumps({"msg": "user (" + user_name + ") does not exist"}),
+        response=json.dumps({"msg": f"user ({user_name}) does not exist"}),
         status=400,
         mimetype="application/json",
     )
@@ -231,7 +214,7 @@ def create_moc_user(user_name):
         if result.status_code != 200 and result.status_code != 201:
             return Response(
                 response=json.dumps(
-                    {"msg": "unable to create openshift user (" + user_name + ") 1"}
+                    {f"msg": "unable to create openshift user ({user_name}) 1"}
                 ),
                 status=400,
                 mimetype="application/json",
@@ -246,7 +229,7 @@ def create_moc_user(user_name):
         if result.status_code != 200 and result.status_code != 201:
             return Response(
                 response=json.dumps(
-                    {"msg": "unable to create openshift identity (" + id_provider + ")"}
+                    {"msg": f"unable to create openshift identity ({id_provider})"}
                 ),
                 status=400,
                 mimetype="application/json",
@@ -262,9 +245,7 @@ def create_moc_user(user_name):
             return Response(
                 response=json.dumps(
                     {
-                        "msg": "unable to create openshift user identity mapping ("
-                        + user_name
-                        + ")"
+                        "msg": f"unable to create openshift user identity mapping ({user_name})"
                     }
                 ),
                 status=400,
@@ -275,12 +256,12 @@ def create_moc_user(user_name):
 
     if user_exists and identity_exists and user_identity_mapping_exists:
         return Response(
-            response=json.dumps({"msg": "user currently exists (" + user_name + ")"}),
+            response=json.dumps({"msg": f"user currently exists ({user_name})"}),
             status=200,
             mimetype="application/json",
         )
     return Response(
-        response=json.dumps({"msg": "user created (" + user_name + ")"}),
+        response=json.dumps({"msg": f"user created ({user_name})"}),
         status=200,
         mimetype="application/json",
     )
@@ -296,9 +277,7 @@ def delete_moc_user(user_name):
         result = shift.delete_user(user_name)
         if result.status_code != 200 and result.status_code != 201:
             return Response(
-                response=json.dumps(
-                    {"msg": "unable to delete User (" + user_name + ") 1"}
-                ),
+                response=json.dumps({"msg": f"unable to delete User ({user_name}) 1"}),
                 status=400,
                 mimetype="application/json",
             )
@@ -317,7 +296,7 @@ def delete_moc_user(user_name):
         if result.status_code != 200 and result.status_code != 201:
             return Response(
                 response=json.dumps(
-                    {"msg": "unable to delete identity (" + id_provider + ")"}
+                    {"msg": f"unable to delete identity ({id_provider})"}
                 ),
                 status=400,
                 mimetype="application/json",
@@ -328,13 +307,13 @@ def delete_moc_user(user_name):
     if user_does_not_exist == 3:
         return Response(
             response=json.dumps(
-                {"msg": "user does not currently exist (" + user_name + ")"}
+                {"msg": f"user does not currently exist ({user_name})"}
             ),
             status=200,
             mimetype="application/json",
         )
     return Response(
-        response=json.dumps({"msg": "user deleted (" + user_name + ")"}),
+        response=json.dumps({"msg": f"user deleted ({user_name})"}),
         status=200,
         mimetype="application/json",
     )

@@ -110,6 +110,8 @@ def compare_results(result, pattern):
         lines = result.stdout.decode("utf-8").split("\n")
         cnt = 0
         for l in lines:
+            # print("line ==> " + l)
+            # print("patt --> " + pattern)
             if p1.match(l):
                 return True
     return False
@@ -144,6 +146,7 @@ def ms_check_project(acct_mgt_url, project_name, auth_opts=[]):
         + [acct_mgt_url + "/projects/" + project_name]
     )
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,)
+    pprint.pprint(result)
     return compare_results(
         result, r'{"msg": "project exists \(' + project_name + r'\)"}'
     )
