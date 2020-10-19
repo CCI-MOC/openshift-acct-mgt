@@ -37,9 +37,9 @@ class MocOpenShift:
     def get_request(self, url, debug=False):
         result = requests.get(url, headers=self.headers, verify=self.verify)
         if debug:
-            self.logger.info("url: " + url)
-            self.logger.info("g: " + str(result.status_code))
-            self.logger.info("g: " + result.text)
+            self.logger.info(f"url: {url}")
+            self.logger.info(f"g: {str(result.status_code)}")
+            self.logger.info(f"g: {result.text}")
         return result
 
     def del_request(self, url, payload, debug=False):
@@ -52,9 +52,9 @@ class MocOpenShift:
         if debug:
             self.logger.info("url: " + url)
             if payload is not None:
-                self.logger.info("payload:" + json.dumps(payload))
-            self.logger.info("d: " + str(result.status_code))
-            self.logger.info("d: " + result.text)
+                self.logger.info(f"payload: {json.dumps(payload)}")
+            self.logger.info(f"d: {str(result.status_code)}")
+            self.logger.info(f"d: {result.text}")
         return result
 
     def put_request(self, url, payload, debug=False):
@@ -65,11 +65,11 @@ class MocOpenShift:
                 url, headers=self.headers, data=json.dumps(payload), verify=self.verify
             )
         if debug:
-            self.logger.info("url: " + url)
+            self.logger.info(f"url: " + url)
             if payload is not None:
-                self.logger.info("payload:" + json.dumps(payload))
-            self.logger.info("pu: " + str(result.status_code))
-            self.logger.info("pu: " + result.text)
+                self.logger.info(f"payload: {json.dumps(payload)}")
+            self.logger.info(f"pu: {str(result.status_code)}")
+            self.logger.info(f"pu: {result.text}")
         return result
 
     def post_request(self, url, payload, debug=False):
@@ -77,10 +77,10 @@ class MocOpenShift:
             url, headers=self.headers, data=json.dumps(payload), verify=False
         )
         if debug:
-            self.logger.info("url: " + url)
-            self.logger.info("payload: " + json.dumps(payload))
-            self.logger.info("po: " + str(result.status_code))
-            self.logger.info("po: " + result.text)
+            self.logger.info(f"url: {url}")
+            self.logger.info(f"payload: {json.dumps(payload)}")
+            self.logger.info(f"po: {str(result.status_code)}")
+            self.logger.info(f"po: {result.text}")
         return result
 
     def user_exists(self, user_name):
@@ -173,9 +173,7 @@ class MocOpenShift:
             return Response(
                 response=json.dumps(
                     {
-                        "msg": "Error: Invalid role,  "
-                        + role
-                        + " is not one of 'admin', 'member' or 'reader'"
+                        "msg": f"Error: Invalid role, {role} is not one of 'admin', 'member' or 'reader'"
                     }
                 ),
                 status=400,
@@ -192,13 +190,7 @@ class MocOpenShift:
                     return Response(
                         response=json.dumps(
                             {
-                                "msg": "rolebinding created ("
-                                + user
-                                + ","
-                                + project_name
-                                + ","
-                                + role
-                                + ")"
+                                "msg": f"rolebinding created ({user},{project_name},{role})"
                             }
                         ),
                         status=200,
@@ -207,14 +199,7 @@ class MocOpenShift:
                 return Response(
                     response=json.dumps(
                         {
-                            "msg": " unable to create rolebinding ("
-                            + user
-                            + ","
-                            + project_name
-                            + ","
-                            + role
-                            + ")"
-                            + result.text
+                            "msg": f"unable to create rolebinding ({user},{project_name},{role}){result.text}"
                         }
                     ),
                     status=400,
@@ -228,14 +213,7 @@ class MocOpenShift:
                 return Response(
                     response=json.dumps(
                         {
-                            "msg": " unable to delete rolebinding ("
-                            + user
-                            + ","
-                            + project_name
-                            + ","
-                            + role
-                            + ")"
-                            + result.text
+                            "msg": f"unable to delete rolebinding ({user},{project_name},{role}){result.text}"
                         }
                     ),
                     status=400,
@@ -247,14 +225,7 @@ class MocOpenShift:
                 return Response(
                     response=json.dumps(
                         {
-                            "msg": " invalid request ("
-                            + user
-                            + ","
-                            + project_name
-                            + ","
-                            + role
-                            + ")"
-                            + result.text
+                            "msg": f"invalid request ({user},{project_name},{role}){result.text}"
                         }
                     ),
                     status=400,
@@ -275,13 +246,7 @@ class MocOpenShift:
                         return Response(
                             response=json.dumps(
                                 {
-                                    "msg": "rolebinding already exists - unable to add ("
-                                    + user
-                                    + ","
-                                    + project_name
-                                    + ","
-                                    + role
-                                    + ")"
+                                    "msg": f"rolebinding already exists - unable to add ({user},{project_name},{role})"
                                 }
                             ),
                             status=400,
@@ -295,13 +260,7 @@ class MocOpenShift:
                     return Response(
                         response=json.dumps(
                             {
-                                "msg": "rolebinding does not exist - unable to delete ("
-                                + user
-                                + ","
-                                + project_name
-                                + ","
-                                + role
-                                + ")"
+                                "msg": f"rolebinding does not exist - unable to delete ({user},{project_name},{role})"
                             }
                         ),
                         status=400,
@@ -313,15 +272,7 @@ class MocOpenShift:
                 return Response(
                     response=json.dumps(
                         {
-                            "msg": "Invalid request ("
-                            + user
-                            + ","
-                            + project_name
-                            + ","
-                            + role
-                            + ","
-                            + operation
-                            + ")"
+                            "msg": f"Invalid request ({user},{project_name},role,{operation})"
                         }
                     ),
                     status=400,
@@ -356,13 +307,7 @@ class MocOpenShift:
         return Response(
             response=json.dumps(
                 {
-                    "msg": "rolebinding already exists ("
-                    + user
-                    + ","
-                    + project_name
-                    + ","
-                    + role
-                    + ")"
+                    "msg": f"rolebinding already exists ({user},{project_name},{role})"
                 }
             ),
             status=400,
