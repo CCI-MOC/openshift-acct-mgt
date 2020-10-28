@@ -306,9 +306,7 @@ class MocOpenShift:
             )
         return Response(
             response=json.dumps(
-                {
-                    "msg": f"rolebinding already exists ({user},{project_name},{role})"
-                }
+                {"msg": f"rolebinding already exists ({user},{project_name},{role})"}
             ),
             status=400,
             mimetype="application/json",

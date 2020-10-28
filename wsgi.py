@@ -16,23 +16,29 @@ if __name__ != "__main__":
 
 class MocOpenShiftSingleton:
     class __MocOSInt:
-        def __init__(self,version, url, logger):
-            with open("/var/run/secrets/kubernetes.io/serviceaccount/token", "r") as file:
+        def __init__(self, version, url, logger):
+            with open(
+                "/var/run/secrets/kubernetes.io/serviceaccount/token", "r"
+            ) as file:
                 token = file.read()
                 if version == "3":
                     self.shift = moc_openshift.MocOpenShift3x(url, token, logger)
                     APP.logger.info("using Openshift ver 3")
                 else:
                     self.shift = moc_openshift.MocOpenShift4x(url, token, logger)
-                    APP.logger.info("using Openshift ver 4")   
-    
-    openshift_instance=None
+                    APP.logger.info("using Openshift ver 4")
+
+    openshift_instance = None
 
     def __init__(self, version, url, logger):
         if not MocOpenShiftSingleton.openshift_instance:
-            MocOpenShiftSingleton.openshift_instance = MocOpenShiftSingleton.__MocOSInt(version,url,logger)
+            MocOpenShiftSingleton.openshift_instance = MocOpenShiftSingleton.__MocOSInt(
+                version, url, logger
+            )
+
     def get_openshift(self):
-        return self.openshift_instance.shift    
+        return self.openshift_instance.shift
+
 
 def get_openshift():
     version = os.environ["OPENSHIFT_VERSION"]
@@ -80,7 +86,11 @@ def create_moc_rolebindings(project_name, user_name, role):
     # role can be one of Admin, Member, Reader
     shift = get_openshift()
     result = shift.update_user_role_project(project_name, user_name, role, "add")
-    return result
+    if result.status_code == 200 or result.status_code == 201:
+        return Response(
+            response=result.response, status=200, mimetype="application/json",
+        )
+    return Response(response=result.response, status=400, mimetype="application/json",)
 
 
 @APP.route(
@@ -91,7 +101,11 @@ def delete_moc_rolebindings(project_name, user_name, role):
     # role can be one of Admin, Member, Reader
     shift = get_openshift()
     result = shift.update_user_role_project(project_name, user_name, role, "del")
-    return result
+    if result.status_code == 200 or result.status_code == 201:
+        return Response(
+            response=result.response, status=200, mimetype="application/json",
+        )
+    return Response(response=result.response, status=400, mimetype="application/json",)
 
 
 @APP.route("/projects/<project_uuid>", methods=["GET"])
