@@ -257,5 +257,147 @@ def delete_moc_user(user_name, full_name=None, id_provider="sso_auth", id_user=N
         )     
 
 
+
+@application.route("/quota/<project_name>/resourcequota/<resource_name>", methods=['GET'])
+def get_resource_quotas(project_name,resource_name):
+    (token, openshift_url) = get_token_and_url()
+    r=None
+    if(exists_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
+        r = get_openshift_resource_quota(token,openshift_url,project_name,resource_name)
+        return Response(
+            response=json.dumps({"msg": " Quota exists for (" + resource_name + ")", "specifications" : r}),
+            status=200,
+            mimetype='application/json'
+            )
+    return Response(
+            response=json.dumps({"msg": "No Quotas with name  (" + resource_name + ") in project (" + project_name +") "}),
+            status=400,
+            mimetype='application/json'
+            )
+
+
+@application.route("/quotas/<project_name>", methods=['GET'])
+def getAll_resource_quotas(project_name):
+    (token, openshift_url) = get_token_and_url()
+    r=None
+    r = getAll_openshift_resource_quota(token,openshift_url,project_name)
+    data = r.json()
+    for element in data['items']:
+	    del element['status']
+    if(r.status_code == 200 or r.status_code == 201):
+        return Response(
+            response=json.dumps({"msg": " All Quotas that exists for project (" + project_name + ").", "get-quotas" : data}),
+            status=200,
+            mimetype='application/json'
+            )
+    return Response(
+            response=json.dumps({"msg": "No Quotas in project (" + project_name +") "}),
+            status=400,
+            mimetype='application/json'
+            )
+
+
+@application.route("/quota/<project_name>/<resource_name>", methods=['POST'])
+def create_resource_quota(project_name,resource_name):
+    (token, openshift_url) = get_token_and_url()
+    r=None
+    if(request.is_json):
+        req= request.get_json()
+        if(not exists_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
+            if(create_openshift_resource_quota(token, openshift_url,project_name,req)):
+                return Response(
+                        response=json.dumps({"Msg": "Quota created Sucessfully .", "namespace" : project_name}),
+                        status=200,
+                        mimetype='application/json'
+                        )
+            else:
+                return Response(
+                        response=json.dumps({"Msg": "Unable to create quota for", "namespace" : project_name}),
+                        status=400,
+                        mimetype='application/json'
+                        )
+        else:
+            return Response(
+                    response=json.dumps({"msg": "Quota already exists with ("  + resource_name+ " ) in project  ("+ project_name +")"}),
+                    status=400,
+                    mimetype='application/json'
+                    )
+    else:
+        return Response(
+                response=json.dumps({"Msg": "Input type should be JSON"}),
+                status=400,
+                mimetype='application/json'
+                )
+
+
+@application.route("/update-quota/<project_name>/resourcequota/<resource_name>", methods=['PATCH'])
+def update_resource_quota(project_name, resource_name):
+    (token, openshift_url) = get_token_and_url()
+    if(request.is_json):
+        object_def= request.get_json()
+    change_requested  = object_def['spec']['hard']
+    if(exists_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
+        r= get_openshift_resource_quota(token,openshift_url,project_name,resource_name)
+        def get_key(val):
+            for key, value in change_requested.items():
+                if val == value:
+                    return key
+            return "key doesn't exist"
+        for a in change_requested:
+            if(a in r):
+                r[a] = change_requested[a]
+            else:
+                l= get_key(change_requested[a])
+                r.update({l:change_requested[a]})
+
+        object_def['spec']['hard'] = r
+
+        r = update_openshift_resource_quota(token, openshift_url, project_name,object_def,resource_name)
+        if(r.status_code == 200 or r.status_code == 201):
+            return Response(
+                    response=json.dumps({"msg": "Quota updated with latest specifications ","updated-specification": object_def['spec']['hard']}),
+                    status=200,
+                    mimetype='application/json'
+                    )
+        else:
+            return Response(
+                    response=json.dumps({"msg": "Unable to update resource quotas for project (" + resource_name + ") "}),
+                    status=400,
+                    mimetype='application/json'
+                    )
+    else:
+        return Response(
+                response=json.dumps({"msg":" No such quotas exists with ("  + resource_name + " ) in project  (" + project_name + ")"}),
+                status=400,
+                mimetype='application/json')
+
+
+
+@application.route("/quota/<project_name>/resourcequota/<resource_name>", methods=['DELETE'])
+def delete_resource_quota(project_name, resource_name):
+    (token, openshift_url) = get_token_and_url()
+    r=None
+    if(exists_openshift_resource_quota(token,openshift_url,project_name,resource_name)):
+        r = delete_openshift_resource_quota( token, openshift_url, project_name, resource_name)
+        data = r.json()
+        if(r.status_code == 200 or r.status_code == 201):
+            return Response(
+                    response=json.dumps({"msg":"Quota Deleted Successfully", "Details": data['metadata']}),
+                    status=200,
+                    mimetype='application/json'
+                    )
+        return Response(
+                response=json.dumps({"msg": "Unable to delete resource quotas are assosiated with (" + project_name + ") "}),
+                status=400,
+                mimetype='application/json'
+                )
+    else:
+        return Response(
+                response=json.dumps({"msg": "No such quotas exists with ("  + resource_name+ " ) in project  ("+ project_name +")"}),
+                status=400,
+                mimetype='application/json'
+                )
+
+
 if __name__ == "__main__":
     application.run()

@@ -35,6 +35,7 @@ copy openshift_identity.py /app/openshift-acct-mgt/openshift_identity.py
 copy openshift_rolebindings.py /app/openshift-acct-mgt/openshift_rolebindings.py
 copy openshift_project.py /app/openshift-acct-mgt/openshift_project.py
 copy openshift_role.py /app/openshift-acct-mgt/openshift_role.py
+copy openshift_resource_quota.py /app/openshift-acct-mgt/openshift_resource_quota.py
 
 COPY start.sh /app/openshift-acct-mgt/start.sh
 COPY requirements.txt /app/openshift-acct-mgt/requirements.txt
