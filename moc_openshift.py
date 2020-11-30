@@ -447,6 +447,45 @@ class MocOpenShift3x(MocOpenShift):
         self.logger.debug("payload -> 2: " + json.dumps(payload))
         return self.put_request(url, payload, True)
 
+    # member functions for quotas
+    #Check if Quota exists
+    def quota_exists(self, project_name, resource_name):
+            url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
+            result = self.get_request(url, True)
+            if result.status_code == 200 or result.status_code == 201:
+                return True
+            return False
+
+    #create quotas, (object_def) contains the specification to be set for particular quota
+    def create_quota(self, project_name, object_def):
+            url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+            result = self.post_request(url, data=json.dumps(object_def) , True)
+            if result.status_code == 200 or result.status_code == 201:
+                return True
+            return False
+
+    #update quotas with some or all specification changes
+    def update_quota(self, project_name, object_def, resource_name):
+            url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
+            result = self.put_request(url, data=json.dumps(object_def) , True)
+            return result
+
+    #get the list of all resource quota assosicated with the project
+    def getAll_quota(self, project_name):
+            url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/"
+            return self.get_request(url, True)
+
+    #get the specific resource quota by name
+    def get_quota(self, project_name, resource_name):
+            url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
+            return self.get_request(url, True)
+
+    #delete quota
+    def delete_quota(self, project_name, resource_name):
+            url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
+            return self.delete_request(url, True)
+       
+
 
 class MocOpenShift4x(MocOpenShift):
 

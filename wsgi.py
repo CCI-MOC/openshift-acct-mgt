@@ -345,5 +345,149 @@ def delete_moc_user(user_name):
     )
 
 
+@APP.route("/quota/<project_name>/resourcequota/<resource_name>", methods=['GET'])
+@AUTH.login_required
+def get_resource_quotas(project_name,resource_name):
+    shift = get_openshift()
+    if shift.quota_exists(project_name,resource_name):
+        result = get_quota(project_name,resource_name)
+        return Response(
+            response=json.dumps({"msg": f"Quota exists for ({resource_name})", "specifications" : result}),
+            status=200,
+            mimetype='application/json'
+            )
+    return Response(
+            response=json.dumps({"msg": f"No Quotas with name  ({resource_name}) in project ({project_name})"}),
+            status=400,
+            mimetype='application/json'
+            )
+
+
+@APP.route("/quotas/<project_name>", methods=['GET'])
+@AUTH.login_required
+def getAll_resource_quotas(project_name):
+    shift = get_openshift()
+    result = getAll_quota(project_name)
+    data = result.json()
+    for element in data['items']:
+	    del element['status']
+    if(result.status_code == 200 or result.status_code == 201):
+        return Response(
+            response=json.dumps({"msg": f"All Quotas that exists for project ({project_name}).", "get-quotas" : data}),
+            status=200,
+            mimetype='application/json'
+            )
+    return Response(
+            response=json.dumps({"msg": f"No Quotas in project ({project_name})"}),
+            status=400,
+            mimetype='application/json'
+            )
+
+
+@APP.route("/quota/<project_name>/<resource_name>", methods=['POST'])
+@AUTH.login_required
+def create_resource_quota(project_name,resource_name):
+    shift = get_openshift()
+    if(request.is_json):
+        object_def= request.get_json()
+        if not shift.quota_exists(project_name, resource_name):
+            if shift.create_quota(project_name, object_def):
+                return Response(
+                        response=json.dumps({"msg": f"Quota created Sucessfully for ({project_name}) "}),
+                        status=200,
+                        mimetype='application/json'
+                        )
+            else:
+                return Response(
+                        response=json.dumps({"msg": f"Unable to create quota for ({project_name}) "}),
+                        status=400,
+                        mimetype='application/json'
+                        )
+        else:
+            return Response(
+                    response=json.dumps({"msg": f"Quota already exists with ({resource_name}) in project ({project_name})"}),
+                    status=400,
+                    mimetype='application/json'
+                    )
+    else:
+        return Response(
+                response=json.dumps({"msg": f"Input type should be JSON"}),
+                status=400,
+                mimetype='application/json'
+                )
+
+
+@APP.route("/update-quota/<project_name>/resourcequota/<resource_name>", methods=['PATCH'])
+@AUTH.login_required
+def update_resource_quota(project_name, resource_name):
+    shift = get_openshift()
+    if(request.is_json):
+        object_def= request.get_json()
+    change_requested  = object_def['spec']['hard']
+    if shift.quota_exists(project_name,resource_name):
+        result= get_quota(project_name,resource_name)
+        def get_key(val):
+            for key, value in change_requested.items():
+                if val == value:
+                    return key
+            return "key doesn't exist"
+            
+        for a in change_requested:
+            if(a in result):
+                result[a] = change_requested[a]
+            else:
+                l= get_key(change_requested[a])
+                result.update({l:change_requested[a]})
+
+        object_def['spec']['hard'] = result
+
+        result = update_quota(project_name,object_def,resource_name)
+        if(result.status_code == 200 or result.status_code == 201):
+            return Response(
+                    response=json.dumps({"msg": f"Quota updated with latest specifications ","updated-specification": object_def['spec']['hard']}),
+                    status=200,
+                    mimetype='application/json'
+                    )
+        else:
+            return Response(
+                    response=json.dumps({"msg": f"Unable to update resource quotas for project ({resource_name}) "}),
+                    status=400,
+                    mimetype='application/json'
+                    )
+    else:
+        return Response(
+                response=json.dumps({"msg": f"No such quotas exists with ({resource_name}) in project  ({project_name})"}),
+                status=400,
+                mimetype='application/json')
+
+
+@APP.route("/quota/<project_name>/resourcequota/<resource_name>", methods=['DELETE'])
+@AUTH.login_required
+def delete_resource_quota(project_name, resource_name):
+    shift = get_openshift()
+    if shift.quota_exists(project_name,resource_name):
+        result = shift.delete_project(project_name, resource_name)
+        if(result.status_code == 200 or result.status_code == 201):
+            return Response(
+                    response=json.dumps({"msg": f"Quota Deleted Successfully for ({resource_name})"}),
+                    status=200,
+                    mimetype='application/json'
+                    )
+        return Response(
+                response=json.dumps({"msg": f"Unable to delete resource quotas are assosiated with ({project_name})"}),
+                status=400,
+                mimetype='application/json'
+                )
+    else:
+        return Response(
+                response=json.dumps({"msg": f"No such quotas exists with ({resource_name}) in project ({project_name})"}),
+                status=400,
+                mimetype='application/json'
+                )
+
+
+
+
+
 if __name__ == "__main__":
     APP.run()
