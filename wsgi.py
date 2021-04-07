@@ -49,13 +49,15 @@ def get_openshift():
 
 @AUTH.verify_password
 def verify_password(username, password):
-    with open("/app/auth/users", "r") as my_file:
-        user_str = my_file.read()
-    if user_str:
-        user = user_str.split(" ", 1)
-        if username == user[0] and password == user[1]:
-            return username
-    return None
+    try:
+        with open("/app/auth/users", "r") as my_file:
+            user_str = my_file.read()
+        if user_str:
+            user = user_str.split(" ", 1)
+            if username == user[0] and password == user[1]:
+                return username
+    except FileNotFoundError:
+        return True
 
 
 @APP.route("/users/<user_name>/projects/<project_name>/roles/<role>", methods=["GET"])

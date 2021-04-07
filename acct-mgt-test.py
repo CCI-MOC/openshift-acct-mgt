@@ -217,7 +217,7 @@ def ms_create_user(acct_mgt_url, user_name, auth_opts=[]):
 
 def ms_delete_user(acct_mgt_url, user_name, auth_opts=[]):
     cmd = (
-        ["curl", "-X", "DELETE", "-v"]
+        ["curl", "-X", "DELETE", "-kv"]
         + auth_opts
         + [acct_mgt_url + "/users/" + user_name]
     )
@@ -229,7 +229,7 @@ def ms_user_project_get_role(
     acct_mgt_url, user_name, project_name, role, success_pattern, auth_opts=[],
 ):
     cmd = (
-        ["curl", "-X", "GET", "-v",]
+        ["curl", "-X", "GET", "-kv",]
         + auth_opts
         + [
             acct_mgt_url
@@ -250,7 +250,7 @@ def ms_user_project_add_role(
     acct_mgt_url, user_name, project_name, role, success_pattern, auth_opts=[]
 ):
     cmd = (
-        ["curl", "-X", "PUT", "-v"]
+        ["curl", "-X", "PUT", "-kv"]
         + auth_opts
         + [
             acct_mgt_url
@@ -271,7 +271,7 @@ def ms_user_project_remove_role(
     acct_mgt_url, user_name, project_name, role, success_pattern, auth_opts=[]
 ):
     cmd = (
-        ["curl", "-X", "DELETE", "-v"]
+        ["curl", "-X", "DELETE", "-kv"]
         + auth_opts
         + [
             acct_mgt_url

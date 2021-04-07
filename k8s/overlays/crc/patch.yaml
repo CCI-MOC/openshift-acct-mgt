@@ -1,0 +1,30 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: onboarding-route
+spec:
+  host: openshift-onboarding.apps-crc.testing
+---
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: onboarding
+spec:
+  template:
+    spec:
+      containers:
+      - name: onboarding
+        env:
+          - name: OPENSHIFT_URL
+            value: "api.crc.testing:6443"
+          - name: OPENSHIFT_VERSION
+            value: "4"
+        image: "openshift-acct-mgt:latest"
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: openshift-acct-mgt
+spec:
+  lookupPolicy:
+    local: true
