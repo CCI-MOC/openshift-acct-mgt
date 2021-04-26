@@ -315,6 +315,47 @@ class MocOpenShift:
     def generate_quota_name(project_name, quota_def):
         return f"{project_name}-{quota_def['scope']}"
 
+    def convert_to_quota_def(self, moc_quota_list):
+        quota_def = dict()
+        for k in moc_quota_list["QuotaList"]:
+            # for each quota spec in the quotalist sort it
+            keylist = k.split(":")
+            if keylist[0] not in quota_def.keys():
+                quota_def[keylist[0]] = {}
+            if keylist[1] not in quota_def[keylist[0]].keys():
+                quota_def[keylist[0]][keylist[1]] = {}
+            if keylist[2] not in quota_def[keylist[0]][keylist[1]].keys():
+                quota_def[keylist[0]][keylist[1]][keylist[2]] = moc_quota_list[
+                    "QuotaList"
+                ][k]
+        return quota_def
+
+    def convert_to_moc_quota_list(self, project_name, quota_def):
+        moc_quota_list = {"Project": project_name, "QuotaList": {}}
+        for scope in quota_def.keys():
+            for kind in quota_def[scope].keys():
+                for quota_name in quota_def[scope][kind].keys():
+                    moc_quota_item = {
+                        f'"{scope}:{kind}:{quota_name}"': quota_def[scope][kind][
+                            quota_name
+                        ]
+                    }
+                    moc_quota_list["QuotaList"].append(moc_quota_item)
+        return moc_quota_list
+
+    def create_quotas(self, moc_quota_list):
+        return self.create_quotas(self.convert_to_quota_def(moc_quota_list))
+
+    def update_quotas(self, moc_quota_list):
+        return self.update_quotas(self.convert_to_quota_def(moc_quota_list))
+
+    def get_quotas(self, project_name):
+        quota_def = self.get_openshift_quotas(project_name)
+        return
+
+    def del_quotas(self, project_name):
+        return self.delete_openshift_quota(project_name)
+
 
 class MocOpenShift3x(MocOpenShift):
 
@@ -449,37 +490,6 @@ class MocOpenShift3x(MocOpenShift):
                 payload["metadata"][key] = rolebindings_json["metadata"][key]
         self.logger.debug("payload -> 2: " + json.dumps(payload))
         return self.put_request(url, payload, True)
-
-    def convert_to_quota_def(self, moc_quota_list):
-        quota_def = dict()
-        for k in moc_quota_def["QuotaList"]:
-            # for each quota spec in the quotalist sort it
-            keylist = k.split(":")
-            if keylist[0] not in quota_def.keys():
-                quota_def[keylist[0]] = {}
-            if keylist[1] not in quota_def[keylist[0]].keys():
-                quota_def[keylist[0]][keylist[1]] = {}
-            if keylist[2] not in quota_def[keylist[0]][keylist[1]].keys():
-                quota_def[keylist[0]][keylist[1]][keylist[2]] = moc_quota_def[
-                    "QuotaList"
-                ][k]
-        return quota_def
-
-    def convert_to_moc_quota_list(self, quota_def):
-        moc_quota_list = {}
-        return moc_quota_list
-
-    def create_quotas(self, moc_quota_list):
-        return self.create_quotas(self.convert_to_quota_def(moc_quota_list))
-
-    def update_quotas(self, moc_quota_list):
-        return self.update_quotas(self.convert_to_quota_def(moc_quota_list))
-
-    def get_quotas(self):
-        return
-
-    def del_quotas(self):
-        return
 
 
 class MocOpenShift4x(MocOpenShift):
@@ -662,7 +672,7 @@ class MocOpenShift4x(MocOpenShift):
         payload = self.generate_openshift_quota(self, project_name, quota_def)
         return self.put_request(url, payload, True)
 
-    def delete_openshift_quota(self, project_name, quota_def):
+    def delete_openshift_quota(self, project_name):
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
         payload = {}
         return self.del_request(self, payload, True)
