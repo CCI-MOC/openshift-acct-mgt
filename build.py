@@ -396,7 +396,11 @@ def get_route_def(project, route, app_url, service):
     route = {
         "apiVersion": "route.openshift.io/v1",
         "kind": "Route",
-        "metadata": {"name": route, "namespace": project, "labels": {"app": project},},
+        "metadata": {
+            "name": route,
+            "namespace": project,
+            "labels": {"app": project},
+        },
         "spec": {
             "host": route + "." + app_url,
             "port": {"targetPort": "8080-tcp"},  # defined in the service !!!

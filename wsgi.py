@@ -88,9 +88,15 @@ def create_moc_rolebindings(project_name, user_name, role):
     result = shift.update_user_role_project(project_name, user_name, role, "add")
     if result.status_code == 200 or result.status_code == 201:
         return Response(
-            response=result.response, status=200, mimetype="application/json",
+            response=result.response,
+            status=200,
+            mimetype="application/json",
         )
-    return Response(response=result.response, status=400, mimetype="application/json",)
+    return Response(
+        response=result.response,
+        status=400,
+        mimetype="application/json",
+    )
 
 
 @APP.route(
@@ -103,9 +109,15 @@ def delete_moc_rolebindings(project_name, user_name, role):
     result = shift.update_user_role_project(project_name, user_name, role, "del")
     if result.status_code == 200 or result.status_code == 201:
         return Response(
-            response=result.response, status=200, mimetype="application/json",
+            response=result.response,
+            status=200,
+            mimetype="application/json",
         )
-    return Response(response=result.response, status=400, mimetype="application/json",)
+    return Response(
+        response=result.response,
+        status=400,
+        mimetype="application/json",
+    )
 
 
 @APP.route("/projects/<project_uuid>", methods=["GET"])

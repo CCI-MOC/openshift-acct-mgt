@@ -101,7 +101,11 @@ def user(user_name, op, success_pattern, auth_opts=[]):
     #    stderr=subprocess.STDOUT,
     # )
     cmd = ["curl", "-X", op, "-kv"] + auth_opts[url + "/users/" + user_name]
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,)
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
 
 
 def compare_results(result, pattern):
@@ -145,7 +149,11 @@ def ms_check_project(acct_mgt_url, project_name, auth_opts=[]):
         + auth_opts
         + [acct_mgt_url + "/projects/" + project_name]
     )
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,)
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
     pprint.pprint(result)
     return compare_results(
         result, r'{"msg": "project exists \(' + project_name + r'\)"}'
@@ -165,17 +173,33 @@ def ms_create_project(acct_mgt_url, project_uuid, displayNameStr, auth_opts=[]):
     cmd = ""
     if displayNameStr is None:
         cmd = (
-            ["curl", "-X", "PUT", "-kv",]
+            [
+                "curl",
+                "-X",
+                "PUT",
+                "-kv",
+            ]
             + auth_opts
             + [acct_mgt_url + "/projects/" + project_uuid]
         )
     else:
         cmd = (
-            ["curl", "-X", "PUT", "-kv", "-d", displayNameStr,]
+            [
+                "curl",
+                "-X",
+                "PUT",
+                "-kv",
+                "-d",
+                displayNameStr,
+            ]
             + auth_opts
             + [acct_mgt_url + "/projects/" + project_uuid]
         )
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,)
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
     return compare_results(
         result, r'{"msg": "project created \(' + project_uuid + r'\)"}'
     )
@@ -187,7 +211,11 @@ def ms_delete_project(acct_mgt_url, project_name, auth_opts=[]):
         + auth_opts
         + [acct_mgt_url + "/projects/" + project_name]
     )
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,)
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
     return compare_results(
         result, r'{"msg": "project deleted \(' + project_name + r'\)"}'
     )
@@ -195,11 +223,20 @@ def ms_delete_project(acct_mgt_url, project_name, auth_opts=[]):
 
 def ms_check_user(acct_mgt_url, user_name, auth_opts=[]):
     cmd = (
-        ["curl", "-X", "GET", "-kv",]
+        [
+            "curl",
+            "-X",
+            "GET",
+            "-kv",
+        ]
         + auth_opts
         + [acct_mgt_url + "/users/" + user_name]
     )
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,)
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
     return compare_results(result, r'{"msg": "user \(' + user_name + r'\) exists"}')
 
 
@@ -221,15 +258,29 @@ def ms_delete_user(acct_mgt_url, user_name, auth_opts=[]):
         + auth_opts
         + [acct_mgt_url + "/users/" + user_name]
     )
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,)
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
     return compare_results(result, r'{"msg": "user deleted \(' + user_name + r'\)"}')
 
 
 def ms_user_project_get_role(
-    acct_mgt_url, user_name, project_name, role, success_pattern, auth_opts=[],
+    acct_mgt_url,
+    user_name,
+    project_name,
+    role,
+    success_pattern,
+    auth_opts=[],
 ):
     cmd = (
-        ["curl", "-X", "GET", "-v",]
+        [
+            "curl",
+            "-X",
+            "GET",
+            "-v",
+        ]
         + auth_opts
         + [
             acct_mgt_url
@@ -241,7 +292,11 @@ def ms_user_project_get_role(
             + role
         ]
     )
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,)
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
     print("get role --> result: " + result.stdout.decode("utf-8") + "\n\n")
     return compare_results(result, success_pattern)
 
@@ -262,7 +317,11 @@ def ms_user_project_add_role(
             + role
         ]
     )
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,)
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
     print("add role --> result: " + result.stdout.decode("utf-8") + "\n\n")
     return compare_results(result, success_pattern)
 
@@ -283,7 +342,11 @@ def ms_user_project_remove_role(
             + role
         ]
     )
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,)
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
     return compare_results(result, success_pattern)
 
 
@@ -409,7 +472,8 @@ def test_user(acct_mgt_url, auth_opts):
         )
 
     check.is_true(
-        oc_resource_exist("users", "User", "test01"), "user test01 doesn't exist",
+        oc_resource_exist("users", "User", "test01"),
+        "user test01 doesn't exist",
     )
     check.is_true(
         ms_check_user(acct_mgt_url, "test01", auth_opts),
@@ -423,16 +487,19 @@ def test_user(acct_mgt_url, auth_opts):
             "Should have failed to create a second user with the username of test01",
         )
     check.is_true(
-        oc_resource_exist("users", "User", "test01"), "user test01 doesn't exist",
+        oc_resource_exist("users", "User", "test01"),
+        "user test01 doesn't exist",
     )
 
     # test user deletion
     if oc_resource_exist("users", "User", "test01"):
         check.is_true(
-            ms_delete_user(acct_mgt_url, "test01", auth_opts), "user test01 deleted",
+            ms_delete_user(acct_mgt_url, "test01", auth_opts),
+            "user test01 deleted",
         )
     check.is_false(
-        oc_resource_exist("users", "User", "test01"), "user test01 not found",
+        oc_resource_exist("users", "User", "test01"),
+        "user test01 not found",
     )
 
     # test deleting a user that was deleted
@@ -442,7 +509,8 @@ def test_user(acct_mgt_url, auth_opts):
             "shouldn't be able to delete non-existing user test01",
         )
     check.is_false(
-        oc_resource_exist("users", "User", "test01"), "user test01 not found",
+        oc_resource_exist("users", "User", "test01"),
+        "user test01 not found",
     )
     check.is_false(
         ms_check_user(acct_mgt_url, "test01", auth_opts),
