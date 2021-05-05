@@ -488,10 +488,7 @@ def main():
     # TODO: make the commandline interface more reasonable
     #      1) doing a docker build should be optional
     #      2) generating all of the certificates should be optional
-    if not (len(sys.argv) in [8, 10]):
-        print(len(sys.argv))
-        usage_msg()
-    else:
+    if len(sys.argv) in [8, 10]:
         project = str(sys.argv[1])
         service = str(sys.argv[2])
         app_url = str(sys.argv[3])
@@ -504,9 +501,6 @@ def main():
         if len(sys.argv) == 10:
             username = str(sys.argv[8])
             password = str(sys.argv[9])
-
-        build_docker_image(docker_file, docker_image)
-
         if not oc_project_exists(project):
             oc_create_project(project)
         build_docker_image(docker_file, docker_image)
@@ -524,6 +518,13 @@ def main():
             username,
             password,
         )
+    elif len(sys.argv) == 3:
+        docker_file = str(sys.argv[1])
+        docker_image = str(sys.argv[2])
+        build_docker_image(docker_file, docker_image)
+    else:
+        print(len(sys.argv))
+        usage_msg()
 
 
 main()
