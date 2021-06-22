@@ -11,7 +11,7 @@ else  # CentOS 7
     URL="https://mirror.openshift.com/pub/openshift-v4/clients/crc/1.24.0/crc-linux-amd64.tar.xz"
     sudo yum update -y
     sudo yum install NetworkManager podman -y
-    sudo systemctl start NetworkManager
+    sudo systemctl enable --now NetworkManager
 fi
 
 # Check for CRC command already existing
