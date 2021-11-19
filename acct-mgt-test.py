@@ -13,6 +13,7 @@
 #
 #          auth_opts = ["-E","./client_cert/acct-mgt-2.crt", "-key", "./client_cert/acct-mgt-2.key"]
 #          auth_opts = ["-cert", r"acct-mgt-2",]
+#          auth_opts = [ "--proxy", "socks5://localhost:1080" ]
 #
 # Initial test to confirm that something is working
 #    curl -kv https://acct-mgt.apps.cnv.massopen.cloud/projects/acct-mgt
@@ -23,6 +24,9 @@
 #
 #  -- testing with basic authentication
 #     python3 -m pytest acct-mgt-test.py --amurl https://acct-mgt.apps.cnv.massopen.cloud --basic "<admin>:<password>"
+#
+#  -- testing though a proxy
+#     python3 -m pytest acct-mgt-test.py --amurl https://acct-mgt.apps.cnv.massopen.cloud --proxy "socks5://localhost:1080"
 import subprocess
 import re
 import time
@@ -31,6 +35,11 @@ import pprint
 import pytest
 import pytest_check as check
 
+
+def print_cmd_and_response(cmd, resp):
+    print( " ".join(cmd))
+    # resp_json = json.loads(resp.stdout.decode("utf-8"))
+    # pprint.pprint(resp_json)
 
 def get_pod_status(project, pod_name):
     result = subprocess.run(
@@ -95,12 +104,12 @@ def user(user_name, op, success_pattern, auth_opts=[]):
         url_op = "DELETE"
 
     # result = subprocess.run(
-    #   ["curl", "-X", op, "-v", "-E","./client_cert/acct-mgt-2.crt", "-key", "./client_cert/acct-mgt-2.key", url + "/users/" + user_name],
+    #   ["curl", "-X", op, "-kv", "-E","./client_cert/acct-mgt-2.crt", "-key", "./client_cert/acct-mgt-2.key", url + "/users/" + user_name],
     #   ["curl", "-X", op, "-kv", "-cert", r"acct-mgt-2", url + "/users/" + user_name],
     #    stdout=subprocess.PIPE,
     #    stderr=subprocess.STDOUT,
     # )
-    cmd = ["curl", "-X", op, "-kv"] + auth_opts[url + "/users/" + user_name]
+    cmd = ["curl", "-X", op, "-kv"] + auth_opts + [url + "/users/" + user_name]
     result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
@@ -149,12 +158,15 @@ def ms_check_project(acct_mgt_url, project_name, auth_opts=[]):
         + auth_opts
         + [acct_mgt_url + "/projects/" + project_name]
     )
+    #pprint.pprint(cmd)
     result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
-    pprint.pprint(result)
+    #pprint.pprint(result)
+    #print_cmd_and_response(cmd,result)
+    #exit()
     return compare_results(
         result, r'{"msg": "project exists \(' + project_name + r'\)"}'
     )
@@ -195,6 +207,7 @@ def ms_create_project(acct_mgt_url, project_uuid, displayNameStr, auth_opts=[]):
             + auth_opts
             + [acct_mgt_url + "/projects/" + project_uuid]
         )
+    pprint.pprint(cmd)
     result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
@@ -211,6 +224,7 @@ def ms_delete_project(acct_mgt_url, project_name, auth_opts=[]):
         + auth_opts
         + [acct_mgt_url + "/projects/" + project_name]
     )
+    pprint.pprint(cmd)
     result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
@@ -232,6 +246,7 @@ def ms_check_user(acct_mgt_url, user_name, auth_opts=[]):
         + auth_opts
         + [acct_mgt_url + "/users/" + user_name]
     )
+    pprint.pprint(cmd)
     result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
@@ -254,10 +269,11 @@ def ms_create_user(acct_mgt_url, user_name, auth_opts=[]):
 
 def ms_delete_user(acct_mgt_url, user_name, auth_opts=[]):
     cmd = (
-        ["curl", "-X", "DELETE", "-v"]
+        ["curl", "-X", "DELETE", "-kv"]
         + auth_opts
         + [acct_mgt_url + "/users/" + user_name]
     )
+    pprint.pprint(cmd)
     result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
@@ -279,7 +295,7 @@ def ms_user_project_get_role(
             "curl",
             "-X",
             "GET",
-            "-v",
+            "-kv",
         ]
         + auth_opts
         + [
@@ -292,6 +308,7 @@ def ms_user_project_get_role(
             + role
         ]
     )
+    pprint.pprint(cmd)
     result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
@@ -305,7 +322,7 @@ def ms_user_project_add_role(
     acct_mgt_url, user_name, project_name, role, success_pattern, auth_opts=[]
 ):
     cmd = (
-        ["curl", "-X", "PUT", "-v"]
+        ["curl", "-X", "PUT", "-kv"]
         + auth_opts
         + [
             acct_mgt_url
@@ -317,6 +334,7 @@ def ms_user_project_add_role(
             + role
         ]
     )
+    pprint.pprint(cmd)
     result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
@@ -330,7 +348,7 @@ def ms_user_project_remove_role(
     acct_mgt_url, user_name, project_name, role, success_pattern, auth_opts=[]
 ):
     cmd = (
-        ["curl", "-X", "DELETE", "-v"]
+        ["curl", "-X", "DELETE", "-kv"]
         + auth_opts
         + [
             acct_mgt_url
@@ -349,6 +367,9 @@ def ms_user_project_remove_role(
     )
     return compare_results(result, success_pattern)
 
+def ms_get_project_quota( acct_mgt_url, project_name):
+    cmd=( ["curl", "-X", "GET", "-kv"] + auth_opts + [acct_mgt_url+"/projects/" + project_name + "/quota"] )
+    result= subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
 def test_project(acct_mgt_url, auth_opts):
     result = 0
@@ -629,6 +650,45 @@ def test_project_user_role(acct_mgt_url, auth_opts):
                 ms_delete_user(acct_mgt_url, "test0" + str(x), auth_opts) == True,
                 "user " + "test0" + str(x) + "unable to be deleted",
             )
+
+
+def test_project_quotas(acct_mgt_url, auth_opts):
+    # create a project
+    if not oc_resource_exist("project", "Project", "test-001"):
+        check.is_true(
+            ms_create_project(
+                acct_mgt_url, "test-001", r'{"displayName":"test-001"}', auth_opts
+            ),
+            "Project (test-001) not created",
+        )
+        wait_until_done(
+            "oc get project test-001", r"test-001[ \t]+test-001[ \t]+Active"
+        )
+    check.is_true(
+        oc_resource_exist("project", "Project", "test-001"),
+        "Project (test-001) not created",
+    )    
+
+    moc_quota={
+        "apiVersion": "0.9",
+        "Kind": "MocQuota",
+        "ServiceName": "s-openshift",
+        "ProjectName": "test-001",
+        "ServiceURL": "https://s-openshift.osh.massopen.cloud:8443",
+        "QuotaList" : {
+            "Global:hard:cpu":6,
+            "Terminating:hard:pods":8,
+            "NotTerminating:hard:pods":4,
+            "BestEffort:hard:memory": "4Gi",
+            "NotBestEffort:hard:ephemeral-storage": "4Gi",
+        }
+    
+    }
+
+    check.is_true(
+        ms_delete_project(acct_mgt_url, "test-001", auth_opts) == True,
+        "project (test-001) deleted",
+    )
 
 
 # def test_quota(self):

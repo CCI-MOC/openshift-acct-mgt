@@ -23,7 +23,7 @@ def usage_msg():
         build.py [project] [service] [openshift's app url] [openshift's api url] [openshift_version] [docker_file] [docker_image] [opt username] [opt password]
 
         Examples:
-
+api.crc.testing
         build.py "acct-mgt-2" "acct-mgt" s-apps.osh.massopen.cloud "s-openshift.osh.massopen.cloud:8443" "3.11" "Dockerfile.x86" "docker.io/robertbartlettbaron/acct-mgt.x86:latest"
         build.py "acct-mgt" "acct-mgt" k-apps.osh.massopen.cloud "k-openshift.osh.massopen.cloud:8443" "3.11" "Dockerfile.x86" "docker.io/robertbartlettbaron/acct-mgt.x86:latest" <username> <password>
         build.py "acct-mgt" "acct-mgt" "apps.cnv.massopen.cloud" "api.cnv.massopen.cloud:6443" "4.5" "Dockerfile.x86" "docker.io/robertbartlettbaron/acct-mgt.x86:latest" <username> <password>
@@ -503,7 +503,7 @@ def main():
             password = str(sys.argv[9])
         if not oc_project_exists(project):
             oc_create_project(project)
-        build_docker_image(docker_file, docker_image)
+        #build_docker_image(docker_file, docker_image)
 
         if not oc_project_exists(project):
             oc_create_project(project)

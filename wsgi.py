@@ -21,12 +21,12 @@ class MocOpenShiftSingleton:
                 "/var/run/secrets/kubernetes.io/serviceaccount/token", "r"
             ) as file:
                 token = file.read()
-                if version == "3":
-                    self.shift = moc_openshift.MocOpenShift3x(url, token, logger)
-                    APP.logger.info("using Openshift ver 3")
-                else:
-                    self.shift = moc_openshift.MocOpenShift4x(url, token, logger)
-                    APP.logger.info("using Openshift ver 4")
+                #if version == "3":
+                #    self.shift = moc_openshift.MocOpenShift3x(url, token, logger)
+                #    APP.logger.info("using Openshift ver 3")
+                #else:
+                self.shift = moc_openshift.MocOpenShift4x(url, token, logger)
+                APP.logger.info("using Openshift ver 4")
 
     openshift_instance = None
 
@@ -240,7 +240,8 @@ def create_moc_user(user_name):
     # full_name    - the full name of the user as it is really convenient to confirm who the account belongs to
     # id_provider  - the id provider (was sso_auth, now is moc-sso)
     # id_user      - the user name associated with the id provider.  can be used to map muliple sso users to a an account as people don't always remember which sso account they are logged in as
-    id_provider = "moc-sso"
+    #id_provider = "moc-sso"
+    id_provider="developer"
     full_name = user_name
     id_user = user_name  # until we support different user names see above.
 
@@ -359,3 +360,22 @@ def delete_moc_user(user_name):
 
 if __name__ == "__main__":
     APP.run()
+
+@APP.route("/projects/<project>/quota", methods=["GET"])
+@AUTH.login_required
+def list_moc_quota(project):
+    shift = get_openshift()
+    return shift.get_moc_quota(project)
+
+@APP.route("/projects/<project>/quota", methods=["POST"])
+@AUTH.login_required
+def put_moc_quota(project):
+    shift = get_openshift()
+    quota_def = request.json
+    return shift.get_moc_quota(project,quota_def)
+
+@APP.route("/projects/<project>/quota", methods=["DELETE"])
+@AUTH.login_required
+def delete_quota(project):
+    shift = get_openshift()
+    return shift.delete_moc_quota(project)

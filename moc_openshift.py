@@ -35,9 +35,11 @@ class MocOpenShift:
         return suggested_project_name
 
     def get_request(self, url, debug=False):
+        if debug:
+            self.logger.info(f"headers: {self.headers}")
+            self.logger.info(f"url: {url}")
         result = requests.get(url, headers=self.headers, verify=self.verify)
         if debug:
-            self.logger.info(f"url: {url}")
             self.logger.info(f"g: {str(result.status_code)}")
             self.logger.info(f"g: {result.text}")
         return result
@@ -343,17 +345,17 @@ class MocOpenShift:
                     moc_quota_list["QuotaList"].append(moc_quota_item)
         return moc_quota_list
 
-    def create_quotas(self, moc_quota_list):
+    def create_moc_quotas(self, moc_quota_list):
         return self.create_quotas(self.convert_to_quota_def(moc_quota_list))
 
     def update_quotas(self, moc_quota_list):
         return self.update_quotas(self.convert_to_quota_def(moc_quota_list))
 
-    def get_quotas(self, project_name):
+    def get_moc_quotas(self, project_name):
         quota_def = self.get_openshift_quotas(project_name)
-        return
+        return 
 
-    def del_quotas(self, project_name):
+    def del_moc_quotas(self, project_name):
         return self.delete_openshift_quota(project_name)
 
 
