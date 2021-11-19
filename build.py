@@ -503,7 +503,7 @@ def main():
             password = str(sys.argv[9])
         if not oc_project_exists(project):
             oc_create_project(project)
-        #build_docker_image(docker_file, docker_image)
+        # build_docker_image(docker_file, docker_image)
 
         if not oc_project_exists(project):
             oc_create_project(project)

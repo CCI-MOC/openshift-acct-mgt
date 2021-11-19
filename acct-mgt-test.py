@@ -37,9 +37,10 @@ import pytest_check as check
 
 
 def print_cmd_and_response(cmd, resp):
-    print( " ".join(cmd))
+    print(" ".join(cmd))
     # resp_json = json.loads(resp.stdout.decode("utf-8"))
     # pprint.pprint(resp_json)
+
 
 def get_pod_status(project, pod_name):
     result = subprocess.run(
@@ -158,15 +159,15 @@ def ms_check_project(acct_mgt_url, project_name, auth_opts=[]):
         + auth_opts
         + [acct_mgt_url + "/projects/" + project_name]
     )
-    #pprint.pprint(cmd)
+    # pprint.pprint(cmd)
     result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
-    #pprint.pprint(result)
-    #print_cmd_and_response(cmd,result)
-    #exit()
+    # pprint.pprint(result)
+    # print_cmd_and_response(cmd,result)
+    # exit()
     return compare_results(
         result, r'{"msg": "project exists \(' + project_name + r'\)"}'
     )
@@ -367,9 +368,15 @@ def ms_user_project_remove_role(
     )
     return compare_results(result, success_pattern)
 
-def ms_get_project_quota( acct_mgt_url, project_name):
-    cmd=( ["curl", "-X", "GET", "-kv"] + auth_opts + [acct_mgt_url+"/projects/" + project_name + "/quota"] )
-    result= subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+def ms_get_project_quota(acct_mgt_url, project_name):
+    cmd = (
+        ["curl", "-X", "GET", "-kv"]
+        + auth_opts
+        + [acct_mgt_url + "/projects/" + project_name + "/quota"]
+    )
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
 
 def test_project(acct_mgt_url, auth_opts):
     result = 0
@@ -667,22 +674,21 @@ def test_project_quotas(acct_mgt_url, auth_opts):
     check.is_true(
         oc_resource_exist("project", "Project", "test-001"),
         "Project (test-001) not created",
-    )    
+    )
 
-    moc_quota={
+    moc_quota = {
         "apiVersion": "0.9",
         "Kind": "MocQuota",
         "ServiceName": "s-openshift",
         "ProjectName": "test-001",
         "ServiceURL": "https://s-openshift.osh.massopen.cloud:8443",
-        "QuotaList" : {
-            "Global:hard:cpu":6,
-            "Terminating:hard:pods":8,
-            "NotTerminating:hard:pods":4,
+        "QuotaList": {
+            "Global:hard:cpu": 6,
+            "Terminating:hard:pods": 8,
+            "NotTerminating:hard:pods": 4,
             "BestEffort:hard:memory": "4Gi",
             "NotBestEffort:hard:ephemeral-storage": "4Gi",
-        }
-    
+        },
     }
 
     check.is_true(

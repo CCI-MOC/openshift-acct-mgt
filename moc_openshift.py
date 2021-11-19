@@ -353,7 +353,7 @@ class MocOpenShift:
 
     def get_moc_quotas(self, project_name):
         quota_def = self.get_openshift_quotas(project_name)
-        return 
+        return
 
     def del_moc_quotas(self, project_name):
         return self.delete_openshift_quota(project_name)
