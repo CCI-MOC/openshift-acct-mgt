@@ -292,12 +292,7 @@ def ms_user_project_get_role(
     auth_opts=[],
 ):
     cmd = (
-        [
-            "curl",
-            "-X",
-            "GET",
-            "-kv",
-        ]
+        ["curl", "-X", "GET", "-kv",]
         + auth_opts
         + [
             acct_mgt_url

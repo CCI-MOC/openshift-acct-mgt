@@ -1,0 +1,27 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: onboarding
+spec:
+  replicas: 1
+  selector:
+    app: onboarding
+  template:
+    metadata:
+      labels:
+        app: onboarding
+    spec:
+      containers:
+      - name: onboarding
+        env:
+        - name: OPENSHIFT_URL
+          value: KUSTOMIZE
+        - name: OPENSHIFT_VERSION
+          value: KUSTOMIZE
+        image: KUSTOMIZE
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+      serviceAccountName: onboarding-serviceaccount
+      automountServiceAccountToken: True

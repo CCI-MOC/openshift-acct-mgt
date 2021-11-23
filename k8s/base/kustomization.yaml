@@ -1,0 +1,10 @@
+commonLabels:
+  app: onboarding
+namespace: onboarding
+resources:
+- cluster-role-binding.yaml
+- deployment-config.yaml
+- image-stream.yaml
+- route.yaml
+- service-account.yaml
+- service.yaml
