@@ -95,10 +95,10 @@ class MocOpenShift:
         user = self.get_user(user_name)
         if (
             not (user.status_code == 200 or user.status_code == 201)
-            and user[identities]
+            and user["identities"]
         ):
             id_str = "{}:{}".format(id_provider, id_user)
-            for identity in user[identities]:
+            for identity in user["identities"]:
                 if identity == id_str:
                     return True
         return False
