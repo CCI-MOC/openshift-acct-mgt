@@ -656,18 +656,21 @@ class MocOpenShift4x(MocOpenShift):
             quota_def[0]["scope"] = "Global"
         return quota_def
 
-    #    def quota_exists(self, project_name, quota_def):
-    #        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
-    #        return self.get_request(url, True)
+    def get_openshift_quotas(self, project_name):
+        moc_quota = dict()
+        # Returns the complete list of quotas that exist in the project and in the configmap as openshift does not list quotas that are not set
+        url = f"{self.get_url()}/apis/authorization.openshift.io/v1/namespaces/{project_name}/configmaps/openshift-quota-definition"
+        QuotaConfigmap = self.get(url, True)
+
+        # Now over write the field that are in the resource quota
+        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+
+        return moc_quota
 
     def create_openshift_quota(self, project_name, quota_def):
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
         payload = self.generate_openshift_quota(self, project_name, quota_def)
         return self.post_request(url, payload, True)
-
-    def get_openshift_quotas(self, project_name):
-        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-        return self.get_request(url, True)
 
     def update_openshift_quota(self, project_name, quota_def):
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
