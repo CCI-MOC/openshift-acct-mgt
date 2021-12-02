@@ -376,7 +376,14 @@ def list_moc_quota(project):
 def put_moc_quota(project):
     shift = get_openshift()
     quota_def = request.json
-    return shift.get_moc_quota(project, quota_def)
+    return shift.post_moc_quota(project, quota_def)
+
+
+@APP.route("/projects/<project>/quota", methods=["PUT"])
+@AUTH.login_required
+def delete_quota(project):
+    shift = get_openshift()
+    return shift.update_moc_quota(project)
 
 
 @APP.route("/projects/<project>/quota", methods=["DELETE"])
