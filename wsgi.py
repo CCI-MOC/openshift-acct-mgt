@@ -366,28 +366,28 @@ if __name__ == "__main__":
 
 @APP.route("/projects/<project>/quota", methods=["GET"])
 @AUTH.login_required
-def list_moc_quota(project):
+def get_quota(project):
     shift = get_openshift()
-    return shift.get_moc_quota(project)
+    return shift.get_openshift_quota(project)
 
 
 @APP.route("/projects/<project>/quota", methods=["POST"])
 @AUTH.login_required
-def put_moc_quota(project):
+def post_quota(project):
     shift = get_openshift()
     quota_def = request.json
-    return shift.post_moc_quota(project, quota_def)
+    return shift.create_openshift_quota(project, quota_def)
 
 
 @APP.route("/projects/<project>/quota", methods=["PUT"])
 @AUTH.login_required
-def delete_quota(project):
+def put_quota(project):
     shift = get_openshift()
-    return shift.update_moc_quota(project)
+    return shift.update_openshift_quota(project)
 
 
 @APP.route("/projects/<project>/quota", methods=["DELETE"])
 @AUTH.login_required
 def delete_quota(project):
     shift = get_openshift()
-    return shift.delete_moc_quota(project)
+    return shift.delete_openshift_quota(project)
