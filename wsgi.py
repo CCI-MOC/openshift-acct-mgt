@@ -21,12 +21,18 @@ class MocOpenShiftSingleton:
                 "/var/run/secrets/kubernetes.io/serviceaccount/token", "r"
             ) as file:
                 token = file.read()
-                # if version == "3":
-                #    self.shift = moc_openshift.MocOpenShift3x(url, token, logger)
-                #    APP.logger.info("using Openshift ver 3")
-                # else:
-                self.shift = moc_openshift.MocOpenShift4x(url, token, logger)
-                APP.logger.info("using Openshift ver 4")
+                with open(
+                    "/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r"
+                ) as file2:
+                    namespace = file.read()
+                    # if version == "3":
+                    #    self.shift = moc_openshift.MocOpenShift3x(url, token, logger)
+                    #    APP.logger.info("using Openshift ver 3")
+                    # else:
+                    self.shift = moc_openshift.MocOpenShift4x(
+                        url, namespace, token, logger
+                    )
+                    APP.logger.info("using Openshift ver 4")
 
     openshift_instance = None
 
