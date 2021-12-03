@@ -10,9 +10,10 @@ class MocOpenShift:
     verify = False
     url = None
 
-    def __init__(self, url, token, logger):
+    def __init__(self, url, namespace, token, logger):
         self.set_token(token)
         self.set_url(url)
+        self.set_namespace(namespace)
         self.logger = logger
 
     def set_token(self, token):
@@ -24,6 +25,9 @@ class MocOpenShift:
 
     def set_url(self, url):
         self.url = "https://" + url
+
+    def set_namespace(self, namespace):
+        self.namespace = namespace
 
     def get_url(self):
         return self.url
@@ -656,11 +660,12 @@ class MocOpenShift4x(MocOpenShift):
             quota_def[0]["scope"] = "Global"
         return quota_def
 
-    def get_openshift_quotas(self, project_name):
+    def get_openshift_quota(self, project_name):
         moc_quota = dict()
         # Returns the complete list of quotas that exist in the project and in the configmap as openshift does not list quotas that are not set
-        url = f"{self.get_url()}/apis/authorization.openshift.io/v1/namespaces/{project_name}/configmaps/openshift-quota-definition"
-        QuotaConfigmap = self.get(url, True)
+        url = f"{self.get_url()}/apis/authorization.openshift.io/v1/namespaces/{self.namespace}/configmaps/openshift-quota-definition"
+        self.logger.info(f">>> URL: {url}")
+        QuotaConfigmap = self.get_request(url, True)
 
         # Now over write the field that are in the resource quota
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
