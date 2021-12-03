@@ -65,13 +65,3 @@ It implements the following functions:
     
             oc adm policy -n <project-name> rm-role-from-user <admin|edit|view> <user-name>
 
-How to test:
-    1.1) testing with minishift
-    1.1.1) start minishift with the following commands
-
-minishift start
-eval $(minishift docker-env
-oc login -u system:admin
-oc adm policy add-cluster-role-to-user cluster-admin developer"
-oc login -u developer
-docker login -u developer -p developer 172.30.1.1:5000
