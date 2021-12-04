@@ -3,38 +3,41 @@ apiVersion: v1
 metadata:
   name: openshift-quota-definition
 data:
-  q001: ":persistentvolumeclaims, base:2, coefficent: 0"
-  q002: ":requests.storage, base:2, coefficent: 0"
-  q003: ":replicationcontrollers, base:2, coefficent: 0"
-  q004: ":resourcequotas, base:2, coefficent: 0"
-  q005: ":services, base:4, coefficent: 0"
-  q006: ":services.loadbalancers, base:2, coefficent: 0"
-  q007: ":services.nodeports, base:2, coefficent: 0"
-  q008: ":secrets, base:4, coefficent: 0"
-  q009: ":configmaps, base:4, coefficent: 0"
-  q010: ":openshift.io/imagestreams, base:2, coefficent: 0"
-  q011: "BestEffort:pods, base:2, coefficent: 2"
-  q012: "NotBestEffort:pods, base:2, coefficent: 2"
-  q013: "NotBestEffort:requests.memory, base:2, coefficent: 4, units: Gi "
-  q014: "NotBestEffort:limits.memory, base:2, coefficent: 4, units: Gi "
-  q015: "NotBestEffort:requests.cpu, base:2, coefficent: 2"
-  q016: "NotBestEffort:limits.cpu, base:2, coefficent: 2"
-  q017: "NotBestEffort:requests.ephemeral-storage, base:2, coefficent: 8, units: Gi "
-  q018: "NotBestEffort:limits.ephemeral-storage, base:2, coefficent: 8, units: Gi "
-  q019: "Terminating:pods, base:2, coefficent: 2"
-  q020: "Terminating:requests.memory, base:2, coefficent: 4, units: Gi "
-  q022: "Terminating:limits.memory, base:2, coefficent: 4, units: Gi "
-  q023: "Terminating:requests.cpu, base:2, coefficent: 2"
-  q023: "Terminating:limits.cpu, base:2, coefficent: 2"
-  q024: "Terminating:requests.ephemeral-storage, base:2, coefficent: 8, units: Gi "
-  q025: "Terminating:limits.ephemeral-storage, base:2, coefficent: , units: Gi "
-  q026: "NotTerminating:pods, base:2, coefficent: 2"
-  q027: "NotTerminating:requests.memory, base:2, coefficent: 4, units: Gi "
-  q028: "NotTerminating:limits.memory, base:2, coefficent: 4, units: Gi "
-  q029: "NotTerminating:requests.cpu, base:2, coefficent: 2"
-  q030: "NotTerminating:limits.cpu, base:2, coefficent: 2"
-  q031: "NotTerminating:requests.ephemeral-storage, base:2, coefficent: 8, units: Gi "
-  q032: "NotTerminating:limits.ephemeral-storage, base:2, coefficent: 8, units: Gi "
+  json: |- 
+    { 
+    ":persistentvolumeclaims":                    { "base": 2, "coefficent": 0 }, 
+    ":requests.storage":                          { "base": 2, "coefficent": 0 },
+    ":replicationcontrollers":                    { "base": 2, "coefficent": 0 },
+    ":resourcequotas":                            { "base": 2, "coefficent": 0 },
+    ":services":                                  { "base": 4, "coefficent": 0 },
+    ":services.loadbalancers":                    { "base": 2, "coefficent": 0 },
+    ":services.nodeports":                        { "base": 2, "coefficent": 0 },
+    ":secrets":                                   { "base": 4, "coefficent": 0 },
+    ":configmaps":                                { "base": 4, "coefficent": 0 },
+    ":openshift.io/imagestreams":                 { "base": 2, "coefficent": 0 },
+    "BestEffort:pods":                            { "base": 2, "coefficent": 2 },
+    "NotBestEffort:pods":                         { "base": 2, "coefficent": 2 },
+    "NotBestEffort:requests.memory":              { "base": 2, "coefficent": 4, "units": "Gi"  },
+    "NotBestEffort:limits.memory":                { "base": 2, "coefficent": 4, "units": "Gi"  },
+    "NotBestEffort:requests.cpu":                 { "base": 2, "coefficent": 2 },
+    "NotBestEffort:limits.cpu":                   { "base": 2, "coefficent": 2 },
+    "NotBestEffort:requests.ephemeral::storage":  { "base": 2, "coefficent": 8, "units": "Gi"  },
+    "NotBestEffort:limits.ephemeral::storage":    { "base": 2, "coefficent": 8, "units": "Gi"  },
+    "Terminating:pods":                           { "base": 2, "coefficent": 2 },
+    "Terminating:requests.memory":                { "base": 2, "coefficent": 4, "units": "Gi"  },
+    "Terminating:limits.memory":                  { "base": 2, "coefficent": 4, "units": "Gi"  },
+    "Terminating:requests.cpu":                   { "base": 2, "coefficent": 2 },
+    "Terminating:limits.cpu":                     { "base": 2, "coefficent": 2 },
+    "Terminating:requests.ephemeral::storage":    { "base": 2, "coefficent": 8, "units": "Gi"  },
+    "Terminating:limits.ephemeral::storage":      { "base": 2, "coefficent": 8, "units": "Gi"  },
+    "NotTerminating:pods":                        { "base": 2, "coefficent": 2 },
+    "NotTerminating:requests.memory":             { "base": 2, "coefficent": 4, "units": "Gi"  },
+    "NotTerminating:limits.memory":               { "base": 2, "coefficent": 4, "units": "Gi"  },
+    "NotTerminating:requests.cpu":                { "base": 2, "coefficent": 2 },
+    "NotTerminating:limits.cpu":                  { "base": 2, "coefficent": 2 },
+    "NotTerminating:requests.ephemeral::storage": { "base": 2, "coefficent": 8, "units": "Gi"  },
+    "NotTerminating:limits.ephemeral::storage":   { "base": 2, "coefficent": 8, "units": "Gi"  }
+    }
 
 
 
