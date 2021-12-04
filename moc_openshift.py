@@ -653,23 +653,42 @@ class MocOpenShift4x(MocOpenShift):
         return data_section
 
     def get_quota_data(self, configmap_name, project_name):
-        quotas = json.loads(self.get_configmap_data(configmap_name)["json"])
-        for k in quotas:
-            quotas[k]["value"] = None
+        # would want to do the following:
+        #   quotas = json.loads(self.get_configmap_data(configmap_name)["json"])
+        # But this has the unintended behavior of adding multiple layers of quotes as in
+        #    ..."{\"json\":\"{  \\\":persistentvolumeclaims\\\":"...
+        # This works for every key field in the embedded JSON - except for fields that contain a '-'
+        # and the program throws an exception.
+        #
+        # However the following works
+        quota_str=self.get_configmap_data(configmap_name)["json"]
+        quota=json.loads(quota_str)
+        # - Now on to our regularly scheduled program
+        for k in quota:
+            quota[k]["value"] = None
 
         # Get the quotas from openshift ResourceQuotas
         # url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
         # resource_quotas=json.loads(self.get_request(url,True).json())
 
-        # Iterate through the resource quota objects merging into the quotas
-        return quotas
+        # Iterate through the resource quota objects adding value into the quotas
+
+        return quota
 
     def get_openshift_quota(self, project_name):
         quota_def = self.get_quota_data("openshift-quota-definition", project_name)
-        quotas = dict()
+        quota = dict()
         for k in quota_def:
-            quotas[k] = quota_def[k]["value"]
-        return quotas
+            quota[k] = quota_def[k]["value"]
+
+        quota_object={
+            "Version": "0.9",
+            "Kind": "MocQuota",
+            "ProjectName": project_name,
+            "Quota": quota
+        }
+        return quota_object
+
 
     def split_quota_name(self, moc_quota_name):
         name_arry = moc_quota_name.split(":")
@@ -685,7 +704,7 @@ class MocOpenShift4x(MocOpenShift):
         quota_def = self.get_quota_data("openshift-quota-definition", project_name)
         payload = dict()
         for k in quota_def:
-            (scope, quota_name) = self.plit_quota_name(k)
+            (scope, quota_name) = self.split_quota_name(k)
             payload[scope]
         payload = self.generate_openshift_quota(self, project_name, quota_def)
         return self.post_request(url, payload, True)
