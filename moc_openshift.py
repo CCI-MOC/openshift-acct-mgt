@@ -661,8 +661,8 @@ class MocOpenShift4x(MocOpenShift):
         # and the program throws an exception.
         #
         # However the following works
-        quota_str=self.get_configmap_data(configmap_name)["json"]
-        quota=json.loads(quota_str)
+        quota_str = self.get_configmap_data(configmap_name)["json"]
+        quota = json.loads(quota_str)
         # - Now on to our regularly scheduled program
         for k in quota:
             quota[k]["value"] = None
@@ -681,14 +681,13 @@ class MocOpenShift4x(MocOpenShift):
         for k in quota_def:
             quota[k] = quota_def[k]["value"]
 
-        quota_object={
+        quota_object = {
             "Version": "0.9",
             "Kind": "MocQuota",
             "ProjectName": project_name,
-            "Quota": quota
+            "Quota": quota,
         }
         return quota_object
-
 
     def split_quota_name(self, moc_quota_name):
         name_arry = moc_quota_name.split(":")
