@@ -2,6 +2,7 @@ import pprint
 import json
 import re
 import requests
+import time
 from flask import Response
 
 
@@ -614,45 +615,13 @@ class MocOpenShift4x(MocOpenShift):
         return self.put_request(url, payload, True)
 
     # member functions for quotas
-    def generate_openshift_quota(self, project_name, quota_def):
-        payload = {
-            "apiVersion": "v1",
-            "kind": "ResourceQuota",
-            "metadata": {
-                "name": self.generate_quota_name(self, project_name, quota_def),
-                "namespace": project_name,
-            },
-            "spec": {},
-        }
-        for k in quota_def.keys():
-            if k == "scope":
-                payload["spec"]["scopes"] = [quota_def["scope"]]
-            else:
-                payload["spec"][k] = quota_def[k]
-        return payload
 
-    def generate_quota_def(self, payload):
-        scope_count = len(payload["spec"]["scopes"])
-        if scope_count == 0:
-            scope_count = 1
-        quota_def = list({} for i in range(scope_count))
-        for k in payload["spec"].keys():
-            if k == "scopes":
-                for x in range(0, len(payload["spec"]["scopes"])):
-                    quota_def[x]["scope"] = payload["spec"]["scopes"][x]
-            else:
-                for x in range(0, scope_count):
-                    quota_def[x][k] = copy.deepcopy(payload["spec"][k])
-        if "scope" not in quota_def[0].keys():
-            quota_def[0]["scope"] = "Global"
-        return quota_def
-
-    def get_configmap_data(self, configmap_name):
+    def get_configmap(self, configmap_name):
         url = f"{self.get_url()}/api/v1/namespaces/{self.namespace}/configmaps/{configmap_name}"
         data_section = self.get_request(url, True).json()["data"]
         return data_section
 
-    def get_quota_data(self, configmap_name, project_name):
+    def get_quota_definitions(self, configmap_name):
         # would want to do the following:
         #   quotas = json.loads(self.get_configmap_data(configmap_name)["json"])
         # But this has the unintended behavior of adding multiple layers of quotes as in
@@ -661,22 +630,25 @@ class MocOpenShift4x(MocOpenShift):
         # and the program throws an exception.
         #
         # However the following works
-        quota_str = self.get_configmap_data(configmap_name)["json"]
+        quota_str = self.get_configmap(configmap_name)["json"]
         quota = json.loads(quota_str)
         # - Now on to our regularly scheduled program
         for k in quota:
             quota[k]["value"] = None
 
-        # Get the quotas from openshift ResourceQuotas
-        # url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-        # resource_quotas=json.loads(self.get_request(url,True).json())
+        # RBB Get the quotas from openshift ResourceQuotas
+        # RBB url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+        # RBB resource_quotas=json.loads(self.get_request(url,True).json())
 
-        # Iterate through the resource quota objects adding value into the quotas
+        # RBB Iterate through the resource quota objects adding value into the quotas
 
         return quota
 
-    def get_openshift_quota(self, project_name):
-        quota_def = self.get_quota_data("openshift-quota-definition", project_name)
+    def get_moc_quota(self, project_name):
+        quota_def = self.get_quota_definitions(
+            "openshift-quota-definition", project_name
+        )
+        quota_def = self.add_in_quotas(project_name, quota_def)
         quota = dict()
         for k in quota_def:
             quota[k] = quota_def[k]["value"]
@@ -690,28 +662,73 @@ class MocOpenShift4x(MocOpenShift):
         return quota_object
 
     def split_quota_name(self, moc_quota_name):
-        name_arry = moc_quota_name.split(":")
-        if len(name_arry[0]) == 0:
+        name_array = moc_quota_name.split(":")
+        if len(name_array[0]) == 0:
             scope = "Project"
         else:
-            scope = name_arry[0]
-        quota_name = name_arry[1]
+            scope = name_array[0]
+        quota_name = name_array[1]
         return (scope, quota_name)
 
-    def create_openshift_quota(self, project_name, new_quota):
-        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-        quota_def = self.get_quota_data("openshift-quota-definition", project_name)
-        payload = dict()
-        for k in quota_def:
+    def create_shift_quotas(self, project_name, quota_spec):
+        quota_def = dict()
+        # separate the quota_spec by quota_scope
+        for k in quota_spec:
             (scope, quota_name) = self.split_quota_name(k)
-            payload[scope]
-        payload = self.generate_openshift_quota(self, project_name, quota_def)
-        return self.post_request(url, payload, True)
+            if scope not in quota_def:
+                quota_def[scope] = dict()
+            quota_def[scope][quota_name] = quota_spec[k]
+        # create the openshift quota resources
+        for scope in quota_def:
+            resource_quota_json = {
+                "apiVersion": "v1",
+                "kind": "ResourceQuota",
+                "metadata": {"name": f"{project_name.lower()}-{scope.lower()}"},
+                "spec": {"hard": {}},
+            }
+            if scope is not "Project":
+                resource_quota_json["scopes"] = [scope]
+            non_null_quota_count = 0
+            for quota_name in quota_def[scope]:
+                if quota_def[scope][quota_name] is not None:
+                    non_null_quota_count += 1
+                    resource_quota_json["spec"]["hard"][quota_name] = quota_def[scope][
+                        quota_name
+                    ]["value"]
+            if non_null_quota_count > 0:
+                url = (
+                    f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+                )
+                self.post_request(url, resource_quota_json, True)
+                # RBB should check to see if the quota was created before here, but this is quick and easy!
+                time.sleep(2)
 
-    def update_openshift_quota(self, project_name, quota_def):
+    def replace_openshift_quota(self, project_name, new_quota):
+        quota_def = self.get_quota_definitions("openshift-quota-definition")
+        if "QuotaMultiplier" in new_quota["Quota"]:
+            x = new_quota["Quota"]["QuotaMultiplier"]
+            for quota in quota_def:
+                quota_def[quota]["value"] = (
+                    quota_def[quota]["coefficient"] * x + quota_def[quota]["base"]
+                )
+                if "units" in quota_def[quota]:
+                    quota_def[quota]["value"] = (
+                        str(quota_def[quota]["value"]) + quota_def[quota]["units"]
+                    )
+
+        # RBB  else:
+        # RBB  need to overwrite the value in the quotadef with the ones from the new_quota
+
+        # RBB self.delete_project_quotas(project_name)
+        quota_def = self.create_shift_quotas(project_name, quota_def)
+        return
+
+    def update_openshift_quota(self, project_name, new_quota):
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
-        payload = self.generate_openshift_quota(self, project_name, quota_def)
-        return self.put_request(url, payload, True)
+        quota_configmap = self.get_quota_data("openshift-quota-definition")
+        # RBB combine quota_configmap with the quota in the project
+
+        return
 
     def delete_openshift_quota(self, project_name):
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
