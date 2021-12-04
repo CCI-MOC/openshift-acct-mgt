@@ -318,8 +318,8 @@ class MocOpenShift:
             mimetype="application/json",
         )
 
-    def generate_quota_name(project_name, quota_def):
-        return f"{project_name}-{quota_def['scope']}"
+    def generate_quota_name(project_name, scope):
+        return f"{project_name}-{scope}"
 
     def convert_to_quota_def(self, moc_quota_list):
         quota_def = dict()
@@ -348,19 +348,6 @@ class MocOpenShift:
                     }
                     moc_quota_list["QuotaList"].append(moc_quota_item)
         return moc_quota_list
-
-    def create_moc_quotas(self, moc_quota_list):
-        return self.create_quotas(self.convert_to_quota_def(moc_quota_list))
-
-    def update_quotas(self, moc_quota_list):
-        return self.update_quotas(self.convert_to_quota_def(moc_quota_list))
-
-    def get_moc_quotas(self, project_name):
-        quota_def = self.get_openshift_quotas(project_name)
-        return
-
-    def del_moc_quotas(self, project_name):
-        return self.delete_openshift_quota(project_name)
 
 
 class MocOpenShift3x(MocOpenShift):
@@ -660,20 +647,46 @@ class MocOpenShift4x(MocOpenShift):
             quota_def[0]["scope"] = "Global"
         return quota_def
 
+    def get_configmap_data(self, configmap_name):
+        url = f"{self.get_url()}/api/v1/namespaces/{self.namespace}/configmaps/{configmap_name}"
+        data_section = self.get_request(url, True).json()["data"]
+        return data_section
+
+    def get_quota_data(self, configmap_name, project_name):
+        quotas = json.loads(self.get_configmap_data(configmap_name)["json"])
+        for k in quotas:
+            quotas[k]["value"] = None
+
+        # Get the quotas from openshift ResourceQuotas
+        # url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+        # resource_quotas=json.loads(self.get_request(url,True).json())
+
+        # Iterate through the resource quota objects merging into the quotas
+        return quotas
+
     def get_openshift_quota(self, project_name):
-        moc_quota = dict()
-        # Returns the complete list of quotas that exist in the project and in the configmap as openshift does not list quotas that are not set
-        url = f"{self.get_url()}/apis/authorization.openshift.io/v1/namespaces/{self.namespace}/configmaps/openshift-quota-definition"
-        self.logger.info(f">>> URL: {url}")
-        QuotaConfigmap = self.get_request(url, True)
+        quota_def = self.get_quota_data("openshift-quota-definition", project_name)
+        quotas = dict()
+        for k in quota_def:
+            quotas[k] = quota_def[k]["value"]
+        return quotas
 
-        # Now over write the field that are in the resource quota
+    def split_quota_name(self, moc_quota_name):
+        name_arry = moc_quota_name.split(":")
+        if len(name_arry[0]) == 0:
+            scope = "Project"
+        else:
+            scope = name_arry[0]
+        quota_name = name_arry[1]
+        return (scope, quota_name)
+
+    def create_openshift_quota(self, project_name, new_quota):
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-
-        return moc_quota
-
-    def create_openshift_quota(self, project_name, quota_def):
-        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+        quota_def = self.get_quota_data("openshift-quota-definition", project_name)
+        payload = dict()
+        for k in quota_def:
+            (scope, quota_name) = self.plit_quota_name(k)
+            payload[scope]
         payload = self.generate_openshift_quota(self, project_name, quota_def)
         return self.post_request(url, payload, True)
 
