@@ -374,7 +374,11 @@ if __name__ == "__main__":
 @AUTH.login_required
 def get_quota(project):
     shift = get_openshift()
-    return shift.get_openshift_quota(project)
+    return Response(
+        response=json.dumps(shift.get_openshift_quota(project)),
+        status=400,
+        mimetype="application/json",
+    )
 
 
 @APP.route("/projects/<project>/quota", methods=["POST"])
