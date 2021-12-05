@@ -636,6 +636,8 @@ class MocOpenShift4x(MocOpenShift):
         for k in quota:
             quota[k]["value"] = None
 
+        # RBB Set the project level resourcequotas to a minimum of 5 (required for how this works)
+
         # RBB Get the quotas from openshift ResourceQuotas
         # RBB url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
         # RBB resource_quotas=json.loads(self.get_request(url,True).json())
@@ -685,7 +687,8 @@ class MocOpenShift4x(MocOpenShift):
                 "spec": {"hard": {}},
             }
             if scope is not "Project":
-                resource_quota_json["scopes"] = [scope]
+                resource_quota_json["spec"]["scopes"]=list()
+                resource_quota_json["spec"]["scopes"].append(scope)
             non_null_quota_count = 0
             for quota_name in quota_def[scope]:
                 if quota_def[scope][quota_name] is not None:
@@ -702,6 +705,7 @@ class MocOpenShift4x(MocOpenShift):
                 time.sleep(2)
 
     def replace_moc_quota(self, project_name, new_quota):
+        """ This will delete all resourcequota objects in a project and create new ones based on the new_quota sepecification"""
         quota_def = self.get_quota_definitions("openshift-quota-definition")
         if "QuotaMultiplier" in new_quota["Quota"]:
             x = new_quota["Quota"]["QuotaMultiplier"]
@@ -713,22 +717,57 @@ class MocOpenShift4x(MocOpenShift):
                     quota_def[quota]["value"] = (
                         str(quota_def[quota]["value"]) + quota_def[quota]["units"]
                     )
-
-        # RBB  else:
+        # RBB TODO: flesh out
+        # else:
+        #      
         # RBB  need to overwrite the value in the quotadef with the ones from the new_quota
 
-        # RBB self.delete_project_quotas(project_name)
-        quota_def = self.create_shift_quotas(project_name, quota_def)
+        #self.delete_moc_quotas(project_name)
+        self.create_shift_quotas(project_name, quota_def)
         return
 
     def update_moc_quota(self, project_name, new_quota):
+        """ this 'updates' the resourcequota objects - by having the new_quota overwrite the old quota, deleting than recreating """
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
         quota_configmap = self.get_quota_data("openshift-quota-definition")
         # RBB combine quota_configmap with the quota in the project
 
         return
 
+    def get_moc_quota_from_resourcequotas(self, project_name) -> dict:
+        """ This returns a list suitable for merging in with the specification from Adjutant/ColdFront """
+        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+        rq_data=self.get_request(url, True)
+        moc_quota=dict()
+        # for rq in rq_data["items"]:
+            
+        return moc_quota
+
+    def get_resourcequotas(self, project_name) -> list:
+        """ Returns a dictionary of all of the resourcequota objects """
+        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+        rq_data=self.get_request(url, True)
+        rq_list=list()
+        for rq in rq_data["items"]:
+            rq_list.append(rq["metadata"]["name"])
+        return rq_list
+
+    def delete_quota(self, project_name, resourcequota_name):
+        """ deletes a resourcequota object (resourcequota_name) in an openshift namespace (project_name) """
+        url = f"{self.get_url()}api/v1/namespaces/{project_name}/resourcequotas/{resourcequota_name}"
+        payload = {
+            "kind": "DeleteOptions",
+            "apiVersion": "user.openshift.io/v1",
+            "providerName": id_provider,
+            "providerUserName": id_user,
+            "gracePeriodSeconds": 300,
+        }
+        return self.del_request(url, payload, True)
+
     def delete_moc_quota(self, project_name):
-        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
+        """ deletes all resourcequotas from an openshift project """
+        resourcequota_list = self.get_resourcequotas(project_name)
+        for resourcequota in resourcequota_list:
+            self.delete_quota(project_name, resourcequota)
         payload = {}
         return self.del_request(self, payload, True)

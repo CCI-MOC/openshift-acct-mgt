@@ -375,7 +375,7 @@ if __name__ == "__main__":
 def get_quota(project):
     shift = get_openshift()
     return Response(
-        response=json.dumps(shift.get_openshift_quota(project)),
+        response=json.dumps(shift.get_moc_quota(project)),
         status=400,
         mimetype="application/json",
     )
@@ -395,7 +395,7 @@ def get_quota(project):
 def put_quota(project):
     shift = get_openshift()
     moc_quota = request.get_json(force=True)
-    shift.replace_openshift_quota(project, moc_quota)
+    shift.replace_moc_quota(project, moc_quota)
     return Response(
         response="Quota Defined - just a placeholder until I get error checking throughout",
         status=400,
@@ -408,11 +408,11 @@ def put_quota(project):
 def patch_quota(project):
     shift = get_openshift()
     moc_quota = request.json
-    return shift.update_openshift_quota(project, moc_quota)
+    return shift.update_moc_quota(project, moc_quota)
 
 
 @APP.route("/projects/<project>/quota", methods=["DELETE"])
 @AUTH.login_required
 def delete_quota(project):
     shift = get_openshift()
-    return shift.delete_openshift_quota(project)
+    return shift.delete_moc_quota(project)
