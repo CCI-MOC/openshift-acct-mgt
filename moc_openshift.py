@@ -645,10 +645,8 @@ class MocOpenShift4x(MocOpenShift):
         return quota
 
     def get_moc_quota(self, project_name):
-        quota_def = self.get_quota_definitions(
-            "openshift-quota-definition", project_name
-        )
-        quota_def = self.add_in_quotas(project_name, quota_def)
+        quota_def = self.get_quota_definitions("openshift-quota-definition")
+        # RBB  quota_def = self.add_in_quotas(project_name, quota_def)
         quota = dict()
         for k in quota_def:
             quota[k] = quota_def[k]["value"]
@@ -703,7 +701,7 @@ class MocOpenShift4x(MocOpenShift):
                 # RBB should check to see if the quota was created before here, but this is quick and easy!
                 time.sleep(2)
 
-    def replace_openshift_quota(self, project_name, new_quota):
+    def replace_moc_quota(self, project_name, new_quota):
         quota_def = self.get_quota_definitions("openshift-quota-definition")
         if "QuotaMultiplier" in new_quota["Quota"]:
             x = new_quota["Quota"]["QuotaMultiplier"]
@@ -723,14 +721,14 @@ class MocOpenShift4x(MocOpenShift):
         quota_def = self.create_shift_quotas(project_name, quota_def)
         return
 
-    def update_openshift_quota(self, project_name, new_quota):
+    def update_moc_quota(self, project_name, new_quota):
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
         quota_configmap = self.get_quota_data("openshift-quota-definition")
         # RBB combine quota_configmap with the quota in the project
 
         return
 
-    def delete_openshift_quota(self, project_name):
+    def delete_moc_quota(self, project_name):
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
         payload = {}
         return self.del_request(self, payload, True)
