@@ -381,26 +381,12 @@ def get_quota(project):
     )
 
 
-# Deliberating on if this is needed
-# @APP.route("/projects/<project>/quota", methods=["POST"])
-# @AUTH.login_required
-# def post_quota(project):
-#     shift = get_openshift()
-#     moc_quota = request.json()
-#     return shift.create_openshift_quota(project, moc_quota)
-
-
-@APP.route("/projects/<project>/quota", methods=["PUT"])
+@APP.route("/projects/<project>/quota", methods=["PUT", "POST"])
 @AUTH.login_required
 def put_quota(project):
     shift = get_openshift()
     moc_quota = request.get_json(force=True)
-    shift.replace_moc_quota(project, moc_quota)
-    return Response(
-        response="Quota Defined - just a placeholder until I get error checking throughout",
-        status=400,
-        mimetype="application/json",
-    )
+    return shift.replace_moc_quota(project, moc_quota)
 
 
 @APP.route("/projects/<project>/quota", methods=["PATCH"])

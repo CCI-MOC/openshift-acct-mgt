@@ -7,17 +7,21 @@ from flask import Response
 
 
 class MocOpenShift:
+    """This class hierarchy was done when we needed to support both OpenShift 3.x and 4.x.  I have kept it here as OpenShift does not necessarily maintine backwards compatibility"""
+
     headers = None
     verify = False
     url = None
 
     def __init__(self, url, namespace, token, logger):
+        """here we initialize the token, url, namespace and url"""
         self.set_token(token)
         self.set_url(url)
         self.set_namespace(namespace)
         self.logger = logger
 
     def set_token(self, token):
+        """the setter for the access token"""
         self.headers = {
             "Authorization": "Bearer " + token,
             "Accept": "application/json",
@@ -25,21 +29,26 @@ class MocOpenShift:
         }
 
     def set_url(self, url):
+        """The url to connect with OpenShift"""
         self.url = "https://" + url
 
     def set_namespace(self, namespace):
+        """The namespace (project_name) of the project running this code"""
         self.namespace = namespace
 
     def get_url(self):
+        """the getter for the url"""
         return self.url
 
     def cnvt_project_name(self, project_name):
+        """For new projects, this one suggests a different project name (if the one provided fails"""
         suggested_project_name = re.sub("^[^A-Za-z0-9]+", "", project_name)
         suggested_project_name = re.sub("[^A-Za-z0-9]+$", "", suggested_project_name)
         suggested_project_name = re.sub("[^A-Za-z0-9-]+", "-", suggested_project_name)
         return suggested_project_name
 
     def get_request(self, url, debug=False):
+        """This handles and logs all get requests (to openshift)"""
         if debug:
             self.logger.info(f"headers: {self.headers}")
             self.logger.info(f"url: {url}")
@@ -50,6 +59,7 @@ class MocOpenShift:
         return result
 
     def del_request(self, url, payload, debug=False):
+        """This handles and logs deletion requests (to openshift)"""
         if payload is None:
             result = requests.delete(url, headers=self.headers, verify=self.verify)
         else:
@@ -65,6 +75,7 @@ class MocOpenShift:
         return result
 
     def put_request(self, url, payload, debug=False):
+        """This handles and logs put requests (to openshift)"""
         if payload is None:
             result = requests.put(url, headers=self.headers, verify=self.verify)
         else:
@@ -80,6 +91,7 @@ class MocOpenShift:
         return result
 
     def post_request(self, url, payload, debug=False):
+        """This handles and logs post requests (to openshift)"""
         result = requests.post(
             url, headers=self.headers, data=json.dumps(payload), verify=False
         )
@@ -91,12 +103,14 @@ class MocOpenShift:
         return result
 
     def user_exists(self, user_name):
+        """checks to see if a specified user exists"""
         result = self.get_user(user_name)
         if result.status_code == 200 or result.status_code == 201:
             return True
         return False
 
     def useridentitymapping_exists(self, user_name, id_provider, id_user):
+        """checks to see if a specified user identity mapping exists"""
         user = self.get_user(user_name)
         if (
             not (user.status_code == 200 or user.status_code == 201)
@@ -109,6 +123,7 @@ class MocOpenShift:
         return False
 
     def user_rolebinding_exists(self, user_name, project_name, role):
+        """checks to see if a user has a particular moc role on a project"""
         openshift_role = ""
 
         if role == "admin":
@@ -133,6 +148,7 @@ class MocOpenShift:
         return False
 
     def get_all_moc_rolebindings(self, user, project_name):
+        """gets all moc rollbindings for the specified user and project"""
         role_bindings = []
         for role in ["admin", "member", "reader"]:
             if self.user_rolebinding_exists(user, project_name, role):
@@ -152,6 +168,7 @@ class MocOpenShift:
         )
 
     def update_user_role_project(self, project_name, user, role, operation):
+        """Updates a moc role for a user on a project"""
         # The REST API 'create rolebindings' doesn't work the way that 'oc create rolebindings'
         # with the REST API,
         #     GET can be used to get the specific role from the project (or all roles)
@@ -318,37 +335,6 @@ class MocOpenShift:
             status=400,
             mimetype="application/json",
         )
-
-    def generate_quota_name(project_name, scope):
-        return f"{project_name}-{scope}"
-
-    def convert_to_quota_def(self, moc_quota_list):
-        quota_def = dict()
-        for k in moc_quota_list["QuotaList"]:
-            # for each quota spec in the quotalist sort it
-            keylist = k.split(":")
-            if keylist[0] not in quota_def.keys():
-                quota_def[keylist[0]] = {}
-            if keylist[1] not in quota_def[keylist[0]].keys():
-                quota_def[keylist[0]][keylist[1]] = {}
-            if keylist[2] not in quota_def[keylist[0]][keylist[1]].keys():
-                quota_def[keylist[0]][keylist[1]][keylist[2]] = moc_quota_list[
-                    "QuotaList"
-                ][k]
-        return quota_def
-
-    def convert_to_moc_quota_list(self, project_name, quota_def):
-        moc_quota_list = {"Project": project_name, "QuotaList": {}}
-        for scope in quota_def.keys():
-            for kind in quota_def[scope].keys():
-                for quota_name in quota_def[scope][kind].keys():
-                    moc_quota_item = {
-                        f'"{scope}:{kind}:{quota_name}"': quota_def[scope][kind][
-                            quota_name
-                        ]
-                    }
-                    moc_quota_list["QuotaList"].append(moc_quota_item)
-        return moc_quota_list
 
 
 class MocOpenShift3x(MocOpenShift):
@@ -679,6 +665,8 @@ class MocOpenShift4x(MocOpenShift):
                 quota_def[scope] = dict()
             quota_def[scope][quota_name] = quota_spec[k]
         # create the openshift quota resources
+        quota_create_status_code = 200
+        quota_create_msg = ""
         for scope in quota_def:
             resource_quota_json = {
                 "apiVersion": "v1",
@@ -700,12 +688,24 @@ class MocOpenShift4x(MocOpenShift):
                 url = (
                     f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
                 )
-                self.post_request(url, resource_quota_json, True)
-                # RBB should check to see if the quota was created before here, but this is quick and easy!
+                resp = self.post_request(url, resource_quota_json, True)
                 time.sleep(2)
+                if resp.status_code in [200, 201]:
+                    quota_create_msg = f"{quota_create_msg} Quota {project_name}/{quota_name} successfully created\n"
+                else:
+                    if resp.status_code > quota_create_status_code:
+                        quota_create_status_code = resp.status_code
+                quota_create_msg = f"{quota_create_msg} Quota {project_name}/{quota_name} creation failed"
+            if quota_create_status_code == 200:
+                quota_create_msg = f"All quota from {project_name} successfully created"
+        return Response(
+            response=quota_create_msg,
+            status=quota_create_status_code,
+            mimetype="application/json",
+        )
 
     def replace_moc_quota(self, project_name, new_quota):
-        """This will delete all resourcequota objects in a project and create new ones based on the new_quota sepecification"""
+        """This will delete all resourcequota objects in a project and create new ones based on the new_quota specification"""
         quota_def = self.get_quota_definitions("openshift-quota-definition")
         if "QuotaMultiplier" in new_quota["Quota"]:
             x = new_quota["Quota"]["QuotaMultiplier"]
@@ -722,11 +722,23 @@ class MocOpenShift4x(MocOpenShift):
         #
         # RBB  need to overwrite the value in the quotadef with the ones from the new_quota
 
-        # self.delete_moc_quotas(project_name)
-        self.create_shift_quotas(project_name, quota_def)
+        delete_resp = self.delete_moc_quota(project_name)
+        if delete_resp.status_code not in [200, 201]:
+            return Response(
+                response="Unable to delete current quotas in {project_name}\n {delete_resp.status}",
+                status=delete_resp.status_code,
+                mimetype="application/json",
+            )
+        create_resp = self.create_shift_quotas(project_name, quota_def)
+        if create_resp.status_code not in [200, 201]:
+            return Response(
+                response="Unable to define Quotas",
+                status=400,
+                mimetype="application/json",
+            )
         return Response(
-            response="Quota Defined - just a placeholder until I get error checking throughout",
-            status=400,
+            response="MOC Quotas Replaced",
+            status=200,
             mimetype="application/json",
         )
 
@@ -738,7 +750,7 @@ class MocOpenShift4x(MocOpenShift):
 
         return Response(
             response="Quota updated - just a placeholder until I get error checking throughout",
-            status=400,
+            status=200,
             mimetype="application/json",
         )
 
@@ -760,8 +772,10 @@ class MocOpenShift4x(MocOpenShift):
         return rq_list
 
     def delete_quota(self, project_name, resourcequota_name):
-        """deletes a resourcequota object (resourcequota_name) in an openshift namespace (project_name)"""
-        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resourcequota_name}"
+        """In an openshift namespace {project_name) delete a specified resourcequota"""
+        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+        if resourcequota_name:
+            url = f"{url}/{resourcequota_name}"
         payload = {
             "kind": "DeleteOptions",
             "apiVersion": "user.openshift.io/v1",
@@ -772,10 +786,22 @@ class MocOpenShift4x(MocOpenShift):
     def delete_moc_quota(self, project_name):
         """deletes all resourcequotas from an openshift project"""
         resourcequota_list = self.get_resourcequotas(project_name)
+        delete_msg = ""
+        delete_status_code = 200
         for resourcequota in resourcequota_list:
-            self.delete_quota(project_name, resourcequota)
+            resp = self.delete_quota(project_name, resourcequota)
+            if resp.status_code in [200, 201]:
+                delete_msg = f"{delete_msg} Quota {project_name}/{resourcequota} successfully deleted\n"
+            else:
+                if resp.status_code > overall_status_code:
+                    overall_status_code = resp.status_code
+                delete_msg = (
+                    f"{delete_msg} Quota {project_name}/{resourcequota} deletion failed"
+                )
+        if delete_status_code == 200:
+            delete_msg = f"All quota from {project_name} successfully deleted"
         return Response(
-            response="Quota Deleted - just a placeholder until I get error checking throughout",
-            status=400,
+            response=delete_msg,
+            status=delete_status_code,
             mimetype="application/json",
         )
