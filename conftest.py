@@ -1,7 +1,12 @@
+""""
+This is a standard pytest construct to setup commandline parameters
+see the main module for more details.
+"""
 import pytest
 
 
 def pytest_addoption(parser):
+    """This adds the commandline options"""
     parser.addoption("--amurl", action="store")
     parser.addoption("--basic", action="store")
     parser.addoption("--cert", action="store")
@@ -10,6 +15,7 @@ def pytest_addoption(parser):
 
 @pytest.fixture(scope="session")
 def acct_mgt_url(request):
+    """This ensures that we have an account management URL (amurl)"""
     amurl_value = request.config.option.amurl
     if amurl_value is None:
         pytest.skip()
@@ -18,24 +24,27 @@ def acct_mgt_url(request):
 
 @pytest.fixture(scope="session")
 def basic(request):
+    """This is an optional username/password for basic authentication"""
     user_passwd = request.config.option.basic
     return user_passwd
 
 
 @pytest.fixture(scope="session")
 def cert(request):
+    """This an optional certificate for use with 2 way TLS - not fully implemented"""
     cert_value = request.config.option.cert
     return cert_value
 
 
 @pytest.fixture(scope="session")
 def proxy(request):
+    """This was for a proxy server (bastion proxy) for the 2 way TLS - not fully implemented"""
     url = request.config.option.proxy
     return url
 
 
 def pytest_generate_tests(metafunc):
-    # This is called for every test. Only get/set command line arguments
+    """This is called for every test. Only get/set command line arguments"""
     # if the argument is specified in the list of test "fixturenames".
     option_value = metafunc.config.option.amurl
     if "amurl" in metafunc.fixturenames and option_value is not None:
