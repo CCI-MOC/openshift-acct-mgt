@@ -616,7 +616,7 @@ class MocOpenShift4x(MocOpenShift):
 
     # member functions for quotas
 
-    def get_configmap(self, configmap_name):
+    def get_configmap_data(self, configmap_name):
         url = f"{self.get_url()}/api/v1/namespaces/{self.namespace}/configmaps/{configmap_name}"
         data_section = self.get_request(url, True).json()["data"]
         return data_section
@@ -630,7 +630,7 @@ class MocOpenShift4x(MocOpenShift):
         # and the program throws an exception.
         #
         # However the following works
-        quota_str = self.get_configmap(configmap_name)["json"]
+        quota_str = self.get_configmap_data(configmap_name)["json"]
         quota = json.loads(quota_str)
         # - Now on to our regularly scheduled program
         for k in quota:
@@ -687,7 +687,7 @@ class MocOpenShift4x(MocOpenShift):
                 "spec": {"hard": {}},
             }
             if scope is not "Project":
-                resource_quota_json["spec"]["scopes"]=list()
+                resource_quota_json["spec"]["scopes"] = list()
                 resource_quota_json["spec"]["scopes"].append(scope)
             non_null_quota_count = 0
             for quota_name in quota_def[scope]:
@@ -705,7 +705,7 @@ class MocOpenShift4x(MocOpenShift):
                 time.sleep(2)
 
     def replace_moc_quota(self, project_name, new_quota):
-        """ This will delete all resourcequota objects in a project and create new ones based on the new_quota sepecification"""
+        """This will delete all resourcequota objects in a project and create new ones based on the new_quota sepecification"""
         quota_def = self.get_quota_definitions("openshift-quota-definition")
         if "QuotaMultiplier" in new_quota["Quota"]:
             x = new_quota["Quota"]["QuotaMultiplier"]
@@ -719,55 +719,63 @@ class MocOpenShift4x(MocOpenShift):
                     )
         # RBB TODO: flesh out
         # else:
-        #      
+        #
         # RBB  need to overwrite the value in the quotadef with the ones from the new_quota
 
-        #self.delete_moc_quotas(project_name)
+        # self.delete_moc_quotas(project_name)
         self.create_shift_quotas(project_name, quota_def)
-        return
+        return Response(
+            response="Quota Defined - just a placeholder until I get error checking throughout",
+            status=400,
+            mimetype="application/json",
+        )
 
     def update_moc_quota(self, project_name, new_quota):
-        """ this 'updates' the resourcequota objects - by having the new_quota overwrite the old quota, deleting than recreating """
+        """this 'updates' the resourcequota objects - by having the new_quota overwrite the old quota, deleting than recreating"""
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
         quota_configmap = self.get_quota_data("openshift-quota-definition")
         # RBB combine quota_configmap with the quota in the project
 
-        return
+        return Response(
+            response="Quota updated - just a placeholder until I get error checking throughout",
+            status=400,
+            mimetype="application/json",
+        )
 
     def get_moc_quota_from_resourcequotas(self, project_name) -> dict:
-        """ This returns a list suitable for merging in with the specification from Adjutant/ColdFront """
+        """This returns a list suitable for merging in with the specification from Adjutant/ColdFront"""
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-        rq_data=self.get_request(url, True)
-        moc_quota=dict()
+        rq_data = self.get_request(url, True)
+        moc_quota = dict()
         # for rq in rq_data["items"]:
-            
         return moc_quota
 
     def get_resourcequotas(self, project_name) -> list:
-        """ Returns a dictionary of all of the resourcequota objects """
+        """Returns a dictionary of all of the resourcequota objects"""
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-        rq_data=self.get_request(url, True)
-        rq_list=list()
+        rq_data = self.get_request(url, True).json()
+        rq_list = list()
         for rq in rq_data["items"]:
             rq_list.append(rq["metadata"]["name"])
         return rq_list
 
     def delete_quota(self, project_name, resourcequota_name):
-        """ deletes a resourcequota object (resourcequota_name) in an openshift namespace (project_name) """
-        url = f"{self.get_url()}api/v1/namespaces/{project_name}/resourcequotas/{resourcequota_name}"
+        """deletes a resourcequota object (resourcequota_name) in an openshift namespace (project_name)"""
+        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resourcequota_name}"
         payload = {
             "kind": "DeleteOptions",
             "apiVersion": "user.openshift.io/v1",
-            "providerName": id_provider,
-            "providerUserName": id_user,
             "gracePeriodSeconds": 300,
         }
         return self.del_request(url, payload, True)
 
     def delete_moc_quota(self, project_name):
-        """ deletes all resourcequotas from an openshift project """
+        """deletes all resourcequotas from an openshift project"""
         resourcequota_list = self.get_resourcequotas(project_name)
         for resourcequota in resourcequota_list:
             self.delete_quota(project_name, resourcequota)
-        payload = {}
-        return self.del_request(self, payload, True)
+        return Response(
+            response="Quota Deleted - just a placeholder until I get error checking throughout",
+            status=400,
+            mimetype="application/json",
+        )
