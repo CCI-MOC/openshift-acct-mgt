@@ -362,25 +362,3 @@ def delete_moc_user(user_name):
 
 if __name__ == "__main__":
     APP.run()
-
-
-@APP.route("/projects/<project>/quota", methods=["GET"])
-@AUTH.login_required
-def list_moc_quota(project):
-    shift = get_openshift()
-    return shift.get_moc_quota(project)
-
-
-@APP.route("/projects/<project>/quota", methods=["POST"])
-@AUTH.login_required
-def put_moc_quota(project):
-    shift = get_openshift()
-    quota_def = request.json
-    return shift.get_moc_quota(project, quota_def)
-
-
-@APP.route("/projects/<project>/quota", methods=["DELETE"])
-@AUTH.login_required
-def delete_quota(project):
-    shift = get_openshift()
-    return shift.delete_moc_quota(project)
