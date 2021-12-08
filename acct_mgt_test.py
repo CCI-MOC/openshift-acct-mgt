@@ -115,10 +115,10 @@ def wait_until_done(oc_cmd, finished_pattern, time_out=30, decrement=5):
 def compare_results(result, pattern):
     """This compares the result of a subprocess (usually curl) call  with a pattern"""
     if result is not None:
-        pattern1 = re.compile(pattern)
+        pattern = re.compile(pattern)
         line_array = result.stdout.decode("utf-8").split("\n")
         for line in line_array:
-            if pattern1.match(line):
+            if pattern.match(line):
                 return True
     return False
 
