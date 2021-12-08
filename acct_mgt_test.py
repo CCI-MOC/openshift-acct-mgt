@@ -89,7 +89,7 @@ def wait_until_done(oc_cmd, finished_pattern, time_out=30, decrement=5):
     This wait while an oc command is running, looking for a pattern that
     indicates it is finished.
     """
-    pattern1 = re.compile(finished_pattern)
+    pattern = re.compile(finished_pattern)
     done = False
     oc_array = oc_cmd.split(" ")
     matched_line = ""
@@ -104,10 +104,10 @@ def wait_until_done(oc_cmd, finished_pattern, time_out=30, decrement=5):
         )
         line_list = result.stdout.decode("utf-8").split("\n")
         for line in line_list:
-            if pattern1.match(line):
+            if pattern.match(line):
                 matched_line = line
                 done = True
-    if pattern1.match(matched_line):
+    if pattern.match(matched_line):
         return True
     return False
 
@@ -124,7 +124,7 @@ def compare_results(result, pattern):
 
 
 def oc_resource_exist(resource, kind, name, project=None):
-    """This uses oc to determin if an openshift resource exists"""
+    """This uses oc to determine if an openshift resource exists"""
     result = None
     if project is None:
         result = subprocess.run(
