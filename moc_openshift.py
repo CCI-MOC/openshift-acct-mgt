@@ -10,6 +10,8 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     headers = None
     verify = False
     url = None
+    namespace = None
+    id_provider = None
 
     @abc.abstractmethod
     def get_user(self, user_name) -> Response:
@@ -27,10 +29,24 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     def update_rolebindings(self, project_name, role, rolebindings_json):
         return
 
-    def __init__(self, url, token, logger):
+    @abc.abstractmethod
+    def get_configmap_data(self, configmap) -> dict():
+        return dict()
+
+    def set_config_settings(self):
+        config = self.get_configmap_data("openshift-acct-mgt-config")
+        self.id_provider = config["identityProvider"]
+        self.logger.info(f"identity provider set to {self.id_provider}")
+
+    def set_namespace(self, namespace):
+        self.namespace = namespace
+
+    def __init__(self, url, namespace, token, logger):
+        self.logger = logger
         self.set_token(token)
         self.set_url(url)
-        self.logger = logger
+        self.set_namespace(namespace)
+        self.set_config_settings()
 
     def set_token(self, token):
         self.headers = {
@@ -108,13 +124,13 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             return True
         return False
 
-    def useridentitymapping_exists(self, user_name, id_provider, id_user):
+    def useridentitymapping_exists(self, user_name, id_user):
         user = self.get_user(user_name)
         if (
             not (user.status_code == 200 or user.status_code == 201)
             and user["identities"]
         ):
-            id_str = "{}:{}".format(id_provider, id_user)
+            id_str = "{}:{}".format(self.id_provider, id_user)
             for identity in user["identities"]:
                 if identity == id_str:
                     return True
@@ -134,8 +150,8 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
         result = self.get_rolebindings(project_name, openshift_role)
         if result.status_code == 200 or result.status_code == 201:
-            role_binding = result.json
-            pprint.pprint(role_binding)
+            role_binding = result.json()
+            self.logger.info(f"rolebinding result:\n{pprint.pformat(role_binding)}")
             if (
                 "userNames" in role_binding.keys()
                 and role_binding["userNames"] is not None
@@ -331,6 +347,10 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
 
 class MocOpenShift4x(MocOpenShift):
+    def get_configmap_data(self, configmap_name) -> dict():
+        url = f"{self.get_url()}/api/v1/namespaces/{self.namespace}/configmaps/{configmap_name}"
+        data_section = self.get_request(url, True).json()["data"]
+        return data_section
 
     # member functions for projects
     def project_exists(self, project_name):
@@ -381,41 +401,41 @@ class MocOpenShift4x(MocOpenShift):
         return self.del_request(url, None, True)
 
     # member functions for identities
-    def identity_exists(self, id_provider, id_user):
-        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{id_provider}:{id_user}"
+    def identity_exists(self, id_user):
+        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{self.id_provider}:{id_user}"
         result = self.get_request(url, True)
         if result.status_code == 200 or result.status_code == 201:
             return True
         return False
 
-    def create_identity(self, id_provider, id_user):
+    def create_identity(self, id_user):
         url = f"{self.get_url()}/apis/user.openshift.io/v1/identities"
         payload = {
             "kind": "Identity",
             "apiVersion": "user.openshift.io/v1",
-            "providerName": id_provider,
+            "providerName": self.id_provider,
             "providerUserName": id_user,
         }
         return self.post_request(url, payload, True)
 
-    def delete_identity(self, id_provider, id_user):
-        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{id_provider}:{id_user}"
+    def delete_identity(self, id_user):
+        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{self.id_provider}:{id_user}"
         payload = {
             "kind": "DeleteOptions",
             "apiVersion": "user.openshift.io/v1",
-            "providerName": id_provider,
+            "providerName": self.id_provider,
             "providerUserName": id_user,
             "gracePeriodSeconds": 300,
         }
         return self.del_request(url, payload, True)
 
-    def create_useridentitymapping(self, user_name, id_provider, id_user):
+    def create_useridentitymapping(self, user_name, id_user):
         url = f"{self.get_url()}/apis/user.openshift.io/v1/useridentitymappings"
         payload = {
             "kind": "UserIdentityMapping",
             "apiVersion": "user.openshift.io/v1",
             "user": {"name": user_name},
-            "identity": {"name": id_provider + ":" + id_user},
+            "identity": {"name": self.id_provider + ":" + id_user},
         }
         return self.post_request(url, payload, True)
 
