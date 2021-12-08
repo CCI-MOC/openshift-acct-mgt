@@ -1,3 +1,4 @@
+import abc
 import pprint
 import json
 import re
@@ -5,10 +6,26 @@ import requests
 from flask import Response
 
 
-class MocOpenShift:
+class MocOpenShift(metaclass=abc.ABCMeta):
     headers = None
     verify = False
     url = None
+
+    @abc.abstractmethod
+    def get_user(self, user_name):
+        return
+
+    @abc.abstractmethod
+    def get_rolebindings(self, project_name, role):
+        return
+
+    @abc.abstractmethod
+    def create_rolebindings(self, project_name, user_name, role):
+        return
+
+    @abc.abstractmethod
+    def update_rolebindings(self, project_name, role, rolebindings_json):
+        return
 
     def __init__(self, url, token, logger):
         self.set_token(token)
@@ -215,7 +232,7 @@ class MocOpenShift:
                 return Response(
                     response=json.dumps(
                         {
-                            "msg": f"unable to delete rolebinding ({user},{project_name},{role}){result.text}"
+                            "msg": f"unable to delete rolebinding ({user},{project_name},{role})"
                         }
                     ),
                     status=400,
@@ -226,9 +243,7 @@ class MocOpenShift:
                 self.logger.info("Error: unknown create operation")
                 return Response(
                     response=json.dumps(
-                        {
-                            "msg": f"invalid request ({user},{project_name},{role}){result.text}"
-                        }
+                        {"msg": f"invalid request ({user},{project_name},{role})"}
                     ),
                     status=400,
                     mimetype="application/json",
@@ -313,185 +328,6 @@ class MocOpenShift:
             status=400,
             mimetype="application/json",
         )
-
-    def generate_quota_name(project_name, quota_def):
-        return f"{project_name}-{quota_def['scope']}"
-
-    def convert_to_quota_def(self, moc_quota_list):
-        quota_def = dict()
-        for k in moc_quota_list["QuotaList"]:
-            # for each quota spec in the quotalist sort it
-            keylist = k.split(":")
-            if keylist[0] not in quota_def.keys():
-                quota_def[keylist[0]] = {}
-            if keylist[1] not in quota_def[keylist[0]].keys():
-                quota_def[keylist[0]][keylist[1]] = {}
-            if keylist[2] not in quota_def[keylist[0]][keylist[1]].keys():
-                quota_def[keylist[0]][keylist[1]][keylist[2]] = moc_quota_list[
-                    "QuotaList"
-                ][k]
-        return quota_def
-
-    def convert_to_moc_quota_list(self, project_name, quota_def):
-        moc_quota_list = {"Project": project_name, "QuotaList": {}}
-        for scope in quota_def.keys():
-            for kind in quota_def[scope].keys():
-                for quota_name in quota_def[scope][kind].keys():
-                    moc_quota_item = {
-                        f'"{scope}:{kind}:{quota_name}"': quota_def[scope][kind][
-                            quota_name
-                        ]
-                    }
-                    moc_quota_list["QuotaList"].append(moc_quota_item)
-        return moc_quota_list
-
-    def create_moc_quotas(self, moc_quota_list):
-        return self.create_quotas(self.convert_to_quota_def(moc_quota_list))
-
-    def update_quotas(self, moc_quota_list):
-        return self.update_quotas(self.convert_to_quota_def(moc_quota_list))
-
-    def get_moc_quotas(self, project_name):
-        quota_def = self.get_openshift_quotas(project_name)
-        return
-
-    def del_moc_quotas(self, project_name):
-        return self.delete_openshift_quota(project_name)
-
-
-class MocOpenShift3x(MocOpenShift):
-
-    # member functions for projects
-    def project_exists(self, project_name):
-        url = f"{self.get_url()}/oapi/v1/projects/{project_name}"
-        result = self.get_request(url, True)
-        if result.status_code == 200 or result.status_code == 201:
-            return True
-        return False
-
-    def create_project(self, project_name, display_name, user_name):
-        # check project_name
-        url = f"{self.get_url()}/oapi/v1/projects"
-        payload = {
-            "kind": "Project",
-            "apiVersion": "v1",
-            "metadata": {
-                "name": project_name,
-                "annotations": {
-                    "openshift.io/display-name": display_name,
-                    "openshift.io/requester": user_name,
-                },
-            },
-        }
-        return self.post_request(url, payload, True)
-
-    def delete_project(self, project_name):
-        # check project_name
-        url = f"{self.get_url()}/oapi/v1/projects/{project_name}"
-        return self.del_request(url, True)
-
-    def get_user(self, user_name):
-        url = f"{self.get_url()}/oapi/v1/users/{user_name}"
-        return self.get_request(url, True)
-
-    # member functions for users
-    def create_user(self, user_name, full_name):
-        url = f"{self.get_url()}/oapi/v1/users"
-        payload = {
-            "kind": "User",
-            "apiVersion": "v1",
-            "metadata": {"name": user_name},
-            "fullName": full_name,
-        }
-        result = self.post_request(url, payload, True)
-        return result
-
-    def delete_user(self, user_name):
-        url = f"{self.get_url()}/oapi/v1/users/{user_name}"
-        return self.del_request(url, None, True)
-
-    # member functions for identities
-    def identity_exists(self, id_provider, id_user):
-        url = f"{self.get_url()}/oapi/v1/identities/{id_provider}:{id_user}"
-        result = self.get_request(url, True)
-        if result.status_code == 200 or result.status_code == 201:
-            return True
-        return False
-
-    def create_identity(self, id_provider, id_user):
-        url = f"{self.get_url()}/oapi/v1/identities"
-        payload = {
-            "kind": "Identity",
-            "apiVersion": "v1",
-            "providerName": id_provider,
-            "providerUserName": id_user,
-        }
-        return self.post_request(url, payload, True)
-
-    def delete_identity(self, id_provider, id_user):
-        url = f"{self.get_url()}/oapi/v1/identities"
-        payload = {
-            "kind": "DeleteOptions",
-            "apiVersion": "v1",
-            "providerName": id_provider,
-            "providerUserName": id_user,
-            "gracePeriodSeconds": 300,
-        }
-        return self.del_request(url, payload, True)
-
-    def create_useridentitymapping(self, user_name, id_provider, id_user):
-        url = f"{self.get_url()}/oapi/v1/useridentitymappings"
-        payload = {
-            "kind": "UserIdentityMapping",
-            "apiVersion": "v1",
-            "user": {"name": user_name},
-            "identity": {"name": id_provider + ":" + id_user},
-        }
-        return self.post_request(url, payload, True)
-
-    # member functions to associate roles for users on projects
-    # To check if a particular user has a rolebinding, get the complete
-    # list of users that have that particular role on the project and
-    # see if the user_name is in that list.
-    #
-    # This just returns the list
-    def get_rolebindings(self, project_name, role):
-        url = f"{self.get_url()}/oapi/v1/namespaces/{project_name}/rolebindings/{role}"
-        result = self.get_request(url, True)
-        self.logger.info("get rolebindings: " + result.text)
-        return result
-
-    def list_rolebindings(self, project_name):
-        url = f"{self.get_url()}/oapi/v1/namespaces/{project_name}/rolebindings"
-        result = self.get_request(url, True)
-        return result
-
-    def create_rolebindings(self, project_name, user_name, role):
-        url = f"{self.get_url()}/oapi/v1/namespaces/{project_name}/rolebindings"
-        payload = {
-            "kind": "RoleBinding",
-            "apiVersion": "v1",
-            "metadata": {"name": role, "namespace": project_name},
-            "groupNames": None,
-            "userNames": [user_name],
-            "roleRef": {"name": role},
-        }
-        return self.post_request(url, payload, True)
-
-    def update_rolebindings(self, project_name, role, rolebindings_json):
-        url = f"{self.get_url()}/oapi/v1/namespaces/{project_name}/rolebindings/{role}"
-        # need to eliminate some fields that might be there
-        payload = {}
-        for key in rolebindings_json:
-            if key in ["kind", "apiVersion", "userNames", "groupNames", "roleRef"]:
-                payload[key] = rolebindings_json[key]
-        payload["metadata"] = {}
-        self.logger.debug("payload -> 1: " + json.dumps(payload))
-        for key in rolebindings_json["metadata"]:
-            if key in ["name", "namespace"]:
-                payload["metadata"][key] = rolebindings_json["metadata"][key]
-        self.logger.debug("payload -> 2: " + json.dumps(payload))
-        return self.put_request(url, payload, True)
 
 
 class MocOpenShift4x(MocOpenShift):
@@ -621,60 +457,3 @@ class MocOpenShift4x(MocOpenShift):
                 payload["metadata"][key] = rolebindings_json["metadata"][key]
         self.logger.debug("payload -> 2: " + json.dumps(payload))
         return self.put_request(url, payload, True)
-
-    # member functions for quotas
-    def generate_openshift_quota(self, project_name, quota_def):
-        payload = {
-            "apiVersion": "v1",
-            "kind": "ResourceQuota",
-            "metadata": {
-                "name": self.generate_quota_name(self, project_name, quota_def),
-                "namespace": project_name,
-            },
-            "spec": {},
-        }
-        for k in quota_def.keys():
-            if k == "scope":
-                payload["spec"]["scopes"] = [quota_def["scope"]]
-            else:
-                payload["spec"][k] = quota_def[k]
-        return payload
-
-    def generate_quota_def(self, payload):
-        scope_count = len(payload["spec"]["scopes"])
-        if scope_count == 0:
-            scope_count = 1
-        quota_def = list({} for i in range(scope_count))
-        for k in payload["spec"].keys():
-            if k == "scopes":
-                for x in range(0, len(payload["spec"]["scopes"])):
-                    quota_def[x]["scope"] = payload["spec"]["scopes"][x]
-            else:
-                for x in range(0, scope_count):
-                    quota_def[x][k] = copy.deepcopy(payload["spec"][k])
-        if "scope" not in quota_def[0].keys():
-            quota_def[0]["scope"] = "Global"
-        return quota_def
-
-    #    def quota_exists(self, project_name, quota_def):
-    #        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
-    #        return self.get_request(url, True)
-
-    def create_openshift_quota(self, project_name, quota_def):
-        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-        payload = self.generate_openshift_quota(self, project_name, quota_def)
-        return self.post_request(url, payload, True)
-
-    def get_openshift_quotas(self, project_name):
-        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-        return self.get_request(url, True)
-
-    def update_openshift_quota(self, project_name, quota_def):
-        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
-        payload = self.generate_openshift_quota(self, project_name, quota_def)
-        return self.put_request(url, payload, True)
-
-    def delete_openshift_quota(self, project_name):
-        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resource_name}"
-        payload = {}
-        return self.del_request(self, payload, True)
