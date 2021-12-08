@@ -134,7 +134,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
         result = self.get_rolebindings(project_name, openshift_role)
         if result.status_code == 200 or result.status_code == 201:
-            role_binding = result.json
+            role_binding = result.json()
             pprint.pprint(role_binding)
             if (
                 "userNames" in role_binding.keys()
