@@ -12,12 +12,12 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     url = None
 
     @abc.abstractmethod
-    def get_user(self, user_name) -> Response:
-        return Response()
+    def get_user(self, user_name):
+        return
 
     @abc.abstractmethod
-    def get_rolebindings(self, project_name, role) -> Response:
-        return Response()
+    def get_rolebindings(self, project_name, role):
+        return
 
     @abc.abstractmethod
     def create_rolebindings(self, project_name, user_name, role):
