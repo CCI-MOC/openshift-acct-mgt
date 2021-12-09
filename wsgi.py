@@ -23,24 +23,20 @@ class MocOpenShiftSingleton:
     class MocOSInt:
         """Wrapper for API openshift API class"""
 
-        def __init__(self, version, url, logger):
+        def __init__(self, url, logger):
             with open(
                 "/var/run/secrets/kubernetes.io/serviceaccount/token", "r"
             ) as file:
                 token = file.read()
-                # if version == "3":
-                #    self.shift = moc_openshift.MocOpenShift3x(url, token, logger)
-                #    APP.logger.info("using Openshift ver 3")
-                # else:
                 self.shift = moc_openshift.MocOpenShift4x(url, token, logger)
                 APP.logger.info("using Openshift ver 4")
 
     openshift_instance = None
 
-    def __init__(self, version, url, logger):
+    def __init__(self, url, logger):
         if not MocOpenShiftSingleton.openshift_instance:
             MocOpenShiftSingleton.openshift_instance = MocOpenShiftSingleton.MocOSInt(
-                version, url, logger
+                url, logger
             )
 
     def get_openshift(self):
@@ -48,9 +44,8 @@ class MocOpenShiftSingleton:
 
 
 def get_openshift():
-    version = os.environ["OPENSHIFT_VERSION"]
     url = os.environ["OPENSHIFT_URL"]
-    shift = MocOpenShiftSingleton(version, url, APP.logger).get_openshift()
+    shift = MocOpenShiftSingleton(url, APP.logger).get_openshift()
     return shift
 
 
