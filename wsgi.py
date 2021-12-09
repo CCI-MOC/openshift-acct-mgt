@@ -51,6 +51,12 @@ def get_openshift():
 
 @AUTH.verify_password
 def verify_password(username, password):
+    """Validates a username and password.
+
+    WARNING: This function always succeeds (anybody can log in) if the auth
+    file is missing.
+    """
+
     try:
         with open("/app/auth/users", "r") as my_file:
             user_str = my_file.read()
@@ -60,6 +66,8 @@ def verify_password(username, password):
                 return username
     except FileNotFoundError:
         return True
+
+    return False
 
 
 @APP.route("/users/<user_name>/projects/<project_name>/roles/<role>", methods=["GET"])
