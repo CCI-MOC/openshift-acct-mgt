@@ -21,14 +21,9 @@ class MocOpenShiftSingleton:
                 "/var/run/secrets/kubernetes.io/serviceaccount/token", "r"
             ) as file:
                 token = file.read()
-                with open(
-                    "/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r"
-                ) as file2:
-                    namespace = file2.read()
-                    self.shift = moc_openshift.MocOpenShift4x(
-                        url, namespace, token, logger
-                    )
-                    APP.logger.info("using Openshift ver 4")
+
+                self.shift = moc_openshift.MocOpenShift4x(url, token, logger)
+                APP.logger.info("using Openshift ver 4")
 
     openshift_instance = None
 
