@@ -1,0 +1,26 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: onboarding
+  namespace: onboarding
+spec:
+  template:
+    spec:
+      containers:
+      - name: onboarding
+        env:
+          - name: OPENSHIFT_URL
+            value: "api.crc.testing:6443"
+          - name: OPENSHIFT_VERSION
+            value: "4"
+          - name: IDENTITY_PROVIDER
+            value: "Developer"
+        image: "docker.io/robertbartlettbaron/acct-mgt.x86:latest"
+        volumeMounts:
+          - name: auth-vol
+            mountPath: /app/auth/users
+            readOnly: true
+      volumes:
+        - name: auth-vol
+          secret:
+            secretName: basic-auth
