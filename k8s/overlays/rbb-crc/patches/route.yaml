@@ -1,0 +1,10 @@
+kind: Route
+metadata:
+  name: onboarding-route
+spec:
+  host: acct-mgt.apps-crc.testing
+  port:
+    targetPort: 8080
+  to:
+    kind: Service
+    name: onboarding
