@@ -1,3 +1,5 @@
+"""API wrapper for interacting with OpenShift authorization"""
+
 import abc
 import pprint
 import json
@@ -7,6 +9,8 @@ from flask import Response
 
 
 class MocOpenShift(metaclass=abc.ABCMeta):
+    """API wrapper interface"""
+
     headers = None
     verify = False
     url = None
@@ -45,6 +49,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     def get_url(self):
         return self.url
 
+    # pylint: disable=no-self-use
     def cnvt_project_name(self, project_name):
         suggested_project_name = re.sub("^[^A-Za-z0-9]+", "", project_name)
         suggested_project_name = re.sub("[^A-Za-z0-9]+$", "", suggested_project_name)
@@ -84,7 +89,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
                 url, headers=self.headers, data=json.dumps(payload), verify=self.verify
             )
         if debug:
-            self.logger.info(f"url: " + url)
+            self.logger.info(f"url: {url}")
             if payload is not None:
                 self.logger.info(f"payload: {json.dumps(payload)}")
             self.logger.info(f"pu: {str(result.status_code)}")
@@ -104,17 +109,14 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
     def user_exists(self, user_name):
         result = self.get_user(user_name)
-        if result.status_code == 200 or result.status_code == 201:
+        if result.status_code in (200, 201):
             return True
         return False
 
     def useridentitymapping_exists(self, user_name, id_provider, id_user):
         user = self.get_user(user_name)
-        if (
-            not (user.status_code == 200 or user.status_code == 201)
-            and user["identities"]
-        ):
-            id_str = "{}:{}".format(id_provider, id_user)
+        if not (user.status_code in (200, 201)) and user["identities"]:
+            id_str = f"{id_provider}:{id_user}"
             for identity in user["identities"]:
                 if identity == id_str:
                     return True
@@ -133,7 +135,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             return False
 
         result = self.get_rolebindings(project_name, openshift_role)
-        if result.status_code == 200 or result.status_code == 201:
+        if result.status_code in (200, 201):
             role_binding = result.json()
             pprint.pprint(role_binding)
             if (
@@ -163,7 +165,9 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             mimetype="application/json",
         )
 
-    def update_user_role_project(self, project_name, user, role, operation):
+    def update_user_role_project(
+        self, project_name, user, role, operation
+    ):  # pylint: disable=too-many-return-statements,too-many-branches
         # The REST API 'create rolebindings' doesn't work the way that 'oc create rolebindings'
         # with the REST API,
         #     GET can be used to get the specific role from the project (or all roles)
@@ -200,12 +204,12 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             )
 
         result = self.get_rolebindings(project_name, openshift_role)
-        if not (result.status_code == 200 or result.status_code == 201):
+        if result.status_code not in (200, 201):
             if operation == "add":
                 # try to create the roles for binding
                 self.logger.info("Creating role bindings")
                 result = self.create_rolebindings(project_name, user, openshift_role)
-                if result.status_code == 200 or result.status_code == 201:
+                if result.status_code in (200, 201):
                     return Response(
                         response=json.dumps(
                             {
@@ -224,7 +228,8 @@ class MocOpenShift(metaclass=abc.ABCMeta):
                     status=400,
                     mimetype="application/json",
                 )
-            elif operation == "del":
+
+            if operation == "del":
                 # this is done for purely defensive reasons, shouldn't happen due to our current business
                 self.logger.info(
                     "Warning: Attempt to delete from an newly created project - has the business logic changed"
@@ -238,18 +243,18 @@ class MocOpenShift(metaclass=abc.ABCMeta):
                     status=400,
                     mimetype="application/json",
                 )
-            else:
-                # should never get here, but also done for purely defensive reasons
-                self.logger.info("Error: unknown create operation")
-                return Response(
-                    response=json.dumps(
-                        {"msg": f"invalid request ({user},{project_name},{role})"}
-                    ),
-                    status=400,
-                    mimetype="application/json",
-                )
 
-        if result.status_code == 200 or result.status_code == 201:
+            # should never get here, but also done for purely defensive reasons
+            self.logger.info("Error: unknown create operation")
+            return Response(
+                response=json.dumps(
+                    {"msg": f"invalid request ({user},{project_name},{role})"}
+                ),
+                status=400,
+                mimetype="application/json",
+            )
+
+        if result.status_code in (200, 201):
             role_binding = result.json()
             if operation == "add":
                 self.logger.debug("role_binding: " + json.dumps(role_binding))
@@ -302,7 +307,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             )
 
             msg = "unknown message"
-            if result.status_code == 200 or result.status_code == 201:
+            if result.status_code in (200, 201):
                 if operation == "add":
                     msg = "Added role to user on project"
                 elif operation == "del":
@@ -331,12 +336,13 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
 
 class MocOpenShift4x(MocOpenShift):
+    """API implementation for OpenShift 4.x"""
 
     # member functions for projects
     def project_exists(self, project_name):
         url = f"{self.get_url()}/apis/project.openshift.io/v1/projects/{project_name}"
         result = self.get_request(url, True)
-        if result.status_code == 200 or result.status_code == 201:
+        if result.status_code in (200, 201):
             return True
         return False
 
@@ -384,7 +390,7 @@ class MocOpenShift4x(MocOpenShift):
     def identity_exists(self, id_provider, id_user):
         url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{id_provider}:{id_user}"
         result = self.get_request(url, True)
-        if result.status_code == 200 or result.status_code == 201:
+        if result.status_code in (200, 201):
             return True
         return False
 
