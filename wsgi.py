@@ -1,3 +1,5 @@
+"""WSGI application for MOC openshift account management microservice"""
+
 import logging
 import json
 import os
@@ -15,7 +17,12 @@ if __name__ != "__main__":
 
 
 class MocOpenShiftSingleton:
-    class __MocOSInt:
+    """Ensure a single instance of the OpenShift API"""
+
+    # pylint: disable=too-few-public-methods
+    class MocOSInt:
+        """Wrapper for API openshift API class"""
+
         def __init__(self, version, url, logger):
             with open(
                 "/var/run/secrets/kubernetes.io/serviceaccount/token", "r"
@@ -32,7 +39,7 @@ class MocOpenShiftSingleton:
 
     def __init__(self, version, url, logger):
         if not MocOpenShiftSingleton.openshift_instance:
-            MocOpenShiftSingleton.openshift_instance = MocOpenShiftSingleton.__MocOSInt(
+            MocOpenShiftSingleton.openshift_instance = MocOpenShiftSingleton.MocOSInt(
                 version, url, logger
             )
 
@@ -88,7 +95,7 @@ def create_moc_rolebindings(project_name, user_name, role):
     # role can be one of Admin, Member, Reader
     shift = get_openshift()
     result = shift.update_user_role_project(project_name, user_name, role, "add")
-    if result.status_code == 200 or result.status_code == 201:
+    if result.status_code in (200, 201):
         return Response(
             response=result.response,
             status=200,
@@ -109,7 +116,7 @@ def delete_moc_rolebindings(project_name, user_name, role):
     # role can be one of Admin, Member, Reader
     shift = get_openshift()
     result = shift.update_user_role_project(project_name, user_name, role, "del")
-    if result.status_code == 200 or result.status_code == 201:
+    if result.status_code in (200, 201):
         return Response(
             response=result.response,
             status=200,
@@ -165,12 +172,12 @@ def create_moc_project(project_uuid, user_name=None):
             req_json = request.get_json(force=True)
             if "displayName" in req_json:
                 project_name = req_json["displayName"]
-            APP.logger.debug("create project json: " + project_name)
+            APP.logger.debug("create project json: %s", project_name)
         else:
             APP.logger.debug("create project json: None")
 
         result = shift.create_project(project_uuid, project_name, user_name)
-        if result.status_code == 200 or result.status_code == 201:
+        if result.status_code in (200, 201):
             return Response(
                 response=json.dumps({"msg": f"project created ({project_uuid})"}),
                 status=200,
@@ -196,7 +203,7 @@ def delete_moc_project(project_uuid):
     shift = get_openshift()
     if shift.project_exists(project_uuid):
         result = shift.delete_project(project_uuid)
-        if result.status_code == 200 or result.status_code == 201:
+        if result.status_code in (200, 201):
             return Response(
                 response=json.dumps({"msg": f"project deleted ({project_uuid})"}),
                 status=200,
@@ -241,7 +248,9 @@ def create_moc_user(user_name):
     # these three values should be added to generalize this function
     # full_name    - the full name of the user as it is really convenient to confirm who the account belongs to
     # id_provider  - the id provider (was sso_auth, now is moc-sso)
-    # id_user      - the user name associated with the id provider.  can be used to map muliple sso users to a an account as people don't always remember which sso account they are logged in as
+    # id_user      - the user name associated with the id provider.  can be used
+    #                to map muliple sso users to a an account as people don't always
+    #                remember which sso account they are logged in as
     # id_provider = "moc-sso"
     id_provider = "developer"
     full_name = user_name
@@ -252,10 +261,10 @@ def create_moc_user(user_name):
     # use case if User doesn't exist, then create
     if not shift.user_exists(user_name):
         result = shift.create_user(user_name, full_name)
-        if result.status_code != 200 and result.status_code != 201:
+        if result.status_code not in (200, 201):
             return Response(
                 response=json.dumps(
-                    {f"msg": "unable to create openshift user ({user_name}) 1"}
+                    {"msg": f"unable to create openshift user ({user_name}) 1"}
                 ),
                 status=400,
                 mimetype="application/json",
@@ -267,7 +276,7 @@ def create_moc_user(user_name):
     # if identity doesn't exist then create
     if not shift.identity_exists(id_provider, id_user):
         result = shift.create_identity(id_provider, id_user)
-        if result.status_code != 200 and result.status_code != 201:
+        if result.status_code not in (200, 201):
             return Response(
                 response=json.dumps(
                     {"msg": f"unable to create openshift identity ({id_provider})"}
@@ -282,7 +291,7 @@ def create_moc_user(user_name):
     user_identity_mapping_exists = False
     if not shift.useridentitymapping_exists(user_name, id_provider, id_user):
         result = shift.create_useridentitymapping(user_name, id_provider, id_user)
-        if result.status_code != 200 and result.status_code != 201:
+        if result.status_code not in (200, 201):
             return Response(
                 response=json.dumps(
                     {
@@ -316,7 +325,7 @@ def delete_moc_user(user_name):
     # use case if User exists then delete
     if shift.user_exists(user_name):
         result = shift.delete_user(user_name)
-        if result.status_code != 200 and result.status_code != 201:
+        if result.status_code not in (200, 201):
             return Response(
                 response=json.dumps({"msg": f"unable to delete User ({user_name}) 1"}),
                 status=400,
@@ -334,7 +343,7 @@ def delete_moc_user(user_name):
 
     if shift.identity_exists(id_provider, id_user):
         result = shift.delete_identity(id_provider, id_user)
-        if result.status_code != 200 and result.status_code != 201:
+        if result.status_code not in (200, 201):
             return Response(
                 response=json.dumps(
                     {"msg": f"unable to delete identity ({id_provider})"}
