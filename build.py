@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+# pylint: skip-file
+
 # To run:
 #    1) login as cluster admin
 #        oc login -u [cluster-admin account] -
