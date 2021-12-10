@@ -2,5 +2,5 @@ bases:
   - ../../base
 patchesStrategicMerge:
   - patches/route.yaml
-  - patches/deployment-config.yaml
+  - patches/deployment.yaml
   - patches/image-stream.yaml

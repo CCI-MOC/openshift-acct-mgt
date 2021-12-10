@@ -1,5 +1,5 @@
-apiVersion: apps.openshift.io/v1
-kind: DeploymentConfig
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: onboarding
   namespace: onboarding
@@ -18,7 +18,7 @@ spec:
         image: "docker.io/robertbartlettbaron/acct-mgt.x86:latest"
         volumeMounts:
           - name: auth-vol
-            mountPath: /app/auth/users
+            mountPath: /app/auth
             readOnly: true
       volumes:
         - name: auth-vol

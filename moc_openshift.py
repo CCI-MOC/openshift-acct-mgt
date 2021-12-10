@@ -2,6 +2,7 @@ import abc
 import pprint
 import json
 import re
+import os
 import requests
 from flask import Response
 
@@ -10,8 +11,6 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     headers = None
     verify = False
     url = None
-    namespace = None
-    id_provider = None
 
     @abc.abstractmethod
     def get_user(self, user_name):
@@ -29,24 +28,13 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     def update_rolebindings(self, project_name, role, rolebindings_json):
         return
 
-    @abc.abstractmethod
-    def get_configmap_data(self, configmap) -> dict():
-        return dict()
+    def get_identity_provider(self):
+        return os.environ["IDENTITY_PROVIDER"]
 
-    def set_config_settings(self):
-        config = self.get_configmap_data("openshift-acct-mgt-config")
-        self.id_provider = config["identityProvider"]
-        self.logger.info(f"identity provider set to {self.id_provider}")
-
-    def set_namespace(self, namespace):
-        self.namespace = namespace
-
-    def __init__(self, url, namespace, token, logger):
+    def __init__(self, url, token, logger):
         self.logger = logger
         self.set_token(token)
         self.set_url(url)
-        self.set_namespace(namespace)
-        self.set_config_settings()
 
     def set_token(self, token):
         self.headers = {
@@ -130,7 +118,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             not (user.status_code == 200 or user.status_code == 201)
             and user["identities"]
         ):
-            id_str = "{}:{}".format(self.id_provider, id_user)
+            id_str = "{}:{}".format(self.get_identity_provider(), id_user)
             for identity in user["identities"]:
                 if identity == id_str:
                     return True
@@ -402,7 +390,7 @@ class MocOpenShift4x(MocOpenShift):
 
     # member functions for identities
     def identity_exists(self, id_user):
-        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{self.id_provider}:{id_user}"
+        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{self.get_identity_provider()}:{id_user}"
         result = self.get_request(url, True)
         if result.status_code == 200 or result.status_code == 201:
             return True
@@ -413,17 +401,17 @@ class MocOpenShift4x(MocOpenShift):
         payload = {
             "kind": "Identity",
             "apiVersion": "user.openshift.io/v1",
-            "providerName": self.id_provider,
+            "providerName": self.get_identity_provider(),
             "providerUserName": id_user,
         }
         return self.post_request(url, payload, True)
 
     def delete_identity(self, id_user):
-        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{self.id_provider}:{id_user}"
+        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{self.get_identity_provider()}:{id_user}"
         payload = {
             "kind": "DeleteOptions",
             "apiVersion": "user.openshift.io/v1",
-            "providerName": self.id_provider,
+            "providerName": self.get_identity_provider(),
             "providerUserName": id_user,
             "gracePeriodSeconds": 300,
         }
@@ -435,7 +423,7 @@ class MocOpenShift4x(MocOpenShift):
             "kind": "UserIdentityMapping",
             "apiVersion": "user.openshift.io/v1",
             "user": {"name": user_name},
-            "identity": {"name": self.id_provider + ":" + id_user},
+            "identity": {"name": self.get_identity_provider() + ":" + id_user},
         }
         return self.post_request(url, payload, True)
 

@@ -6,8 +6,6 @@ spec:
   host: APP_URL  # Overlaid
   port:
     targetPort: 8080
-  tls:
-    termination: edge
   to:
     kind: Service
     name: onboarding
