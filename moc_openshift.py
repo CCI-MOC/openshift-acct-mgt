@@ -335,10 +335,6 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
 
 class MocOpenShift4x(MocOpenShift):
-    def get_configmap_data(self, configmap_name) -> dict():
-        url = f"{self.get_url()}/api/v1/namespaces/{self.namespace}/configmaps/{configmap_name}"
-        data_section = self.get_request(url, True).json()["data"]
-        return data_section
 
     # member functions for projects
     def project_exists(self, project_name):
