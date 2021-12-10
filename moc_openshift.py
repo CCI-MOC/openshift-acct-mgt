@@ -32,7 +32,8 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     def update_rolebindings(self, project_name, role, rolebindings_json):
         return
 
-    def get_identity_provider(self):
+    @staticmethod
+    def get_identity_provider():
         return os.environ["IDENTITY_PROVIDER"]
 
     def __init__(self, url, token, logger):
@@ -119,6 +120,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
     def useridentitymapping_exists(self, user_name, id_user):
         user = self.get_user(user_name)
+        id_provider = self.get_identity_provider()
         if not (user.status_code in (200, 201)) and user["identities"]:
             id_str = f"{id_provider}:{id_user}"
             for identity in user["identities"]:

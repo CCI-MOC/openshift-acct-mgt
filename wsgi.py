@@ -273,11 +273,11 @@ def create_moc_user(user_name):
 
     identity_exists = False
     # if identity doesn't exist then create
-    if not shift.identity_exists(id_provider, id_user):
-        result = shift.create_identity(id_provider, id_user)
+    if not shift.identity_exists(id_user):
+        result = shift.create_identity(id_user)
         if result.status_code not in (200, 201):
             return Response(
-                response=json.dumps({"msg": f"unable to create openshift identity"}),
+                response=json.dumps({"msg": "unable to create openshift identity"}),
                 status=400,
                 mimetype="application/json",
             )
@@ -286,8 +286,8 @@ def create_moc_user(user_name):
 
     # creates the useridenitymapping
     user_identity_mapping_exists = False
-    if not shift.useridentitymapping_exists(user_name, id_provider, id_user):
-        result = shift.create_useridentitymapping(user_name, id_provider, id_user)
+    if not shift.useridentitymapping_exists(user_name, id_user):
+        result = shift.create_useridentitymapping(user_name, id_user)
         if result.status_code not in (200, 201):
             return Response(
                 response=json.dumps(
