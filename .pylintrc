@@ -1,0 +1,5 @@
+[FORMAT]
+max-line-length=160
+
+[MESSAGES CONTROL]
+disable = missing-function-docstring,fixme,unspecified-encoding
