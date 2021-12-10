@@ -249,13 +249,9 @@ def get_moc_user(user_name):
 @AUTH.login_required
 def create_moc_user(user_name):
     # these three values should be added to generalize this function
-    # full_name    - the full name of the user as it is really convenient to confirm who the account belongs to
-    # id_provider  - the id provider (was sso_auth, now is moc-sso)
-    # id_user      - the user name associated with the id provider.  can be used
-    #                to map muliple sso users to a an account as people don't always
-    #                remember which sso account they are logged in as
-    # id_provider = "moc-sso"
-    id_provider = "developer"
+    # full_name    - the full name of the user as it is really convenient
+    # id_provider  - this is in the yaml configuration for this project - needed in the past
+
     full_name = user_name
     id_user = user_name  # until we support different user names see above.
 
@@ -277,13 +273,11 @@ def create_moc_user(user_name):
 
     identity_exists = False
     # if identity doesn't exist then create
-    if not shift.identity_exists(id_provider, id_user):
-        result = shift.create_identity(id_provider, id_user)
+    if not shift.identity_exists(id_user):
+        result = shift.create_identity(id_user)
         if result.status_code not in (200, 201):
             return Response(
-                response=json.dumps(
-                    {"msg": f"unable to create openshift identity ({id_provider})"}
-                ),
+                response=json.dumps({"msg": "unable to create openshift identity"}),
                 status=400,
                 mimetype="application/json",
             )
@@ -292,8 +286,8 @@ def create_moc_user(user_name):
 
     # creates the useridenitymapping
     user_identity_mapping_exists = False
-    if not shift.useridentitymapping_exists(user_name, id_provider, id_user):
-        result = shift.create_useridentitymapping(user_name, id_provider, id_user)
+    if not shift.useridentitymapping_exists(user_name, id_user):
+        result = shift.create_useridentitymapping(user_name, id_user)
         if result.status_code not in (200, 201):
             return Response(
                 response=json.dumps(
@@ -337,19 +331,14 @@ def delete_moc_user(user_name):
     else:
         user_does_not_exist = 0x01
 
-    # This is the specific business case for the MOC sort of
-    # TODO: generalize this in the next version.
-    #    1) get the list of identities associated with the user
-    #    2) delete each one (as well as doing this part first)
     id_user = user_name
-    id_provider = "sso_auth"
 
-    if shift.identity_exists(id_provider, id_user):
-        result = shift.delete_identity(id_provider, id_user)
+    if shift.identity_exists(id_user):
+        result = shift.delete_identity(id_user)
         if result.status_code not in (200, 201):
             return Response(
                 response=json.dumps(
-                    {"msg": f"unable to delete identity ({id_provider})"}
+                    {"msg": f"unable to delete identity for ({id_user})"}
                 ),
                 status=400,
                 mimetype="application/json",
