@@ -13,7 +13,7 @@ spec:
           value: KUSTOMIZE
         - name: OPENSHIFT_VERSION
           value: KUSTOMIZE
-        - name: IDENTITY_PROVIDER
+        - name: ACCT_MGT_IDENTITY_PROVIDER
           value: KUSTOMIZE
         image: KUSTOMIZE
         imagePullPolicy: Always

@@ -13,7 +13,7 @@ spec:
             value: "api.crc.testing:6443"
           - name: OPENSHIFT_VERSION
             value: "4"
-          - name: IDENTITY_PROVIDER
+          - name: ACCT_MGT_IDENTITY_PROVIDER
             value: "Developer"
         image: "docker.io/robertbartlettbaron/acct-mgt.x86:latest"
         volumeMounts:

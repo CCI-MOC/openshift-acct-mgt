@@ -34,7 +34,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
     @staticmethod
     def get_identity_provider():
-        return os.environ["IDENTITY_PROVIDER"]
+        return os.environ["ACCT_MGT_IDENTITY_PROVIDER"]
 
     def __init__(self, url, token, logger):
         self.logger = logger
