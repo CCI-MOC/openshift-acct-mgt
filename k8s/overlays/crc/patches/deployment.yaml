@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onboarding
+spec:
+  template:
+    spec:
+      containers:
+      - name: onboarding
+        env:
+          - name: OPENSHIFT_URL
+            value: "api.crc.testing:6443"
+          - name: OPENSHIFT_VERSION
+            value: "4"
+          - name: ACCT_MGT_IDENTITY_PROVIDER
+            value: "Developer"
+        image: "openshift-acct-mgt:latest"

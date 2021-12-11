@@ -1,0 +1,12 @@
+secretGenerator:
+- name: basic-auth
+  namespace: onboarding
+  behavior: create  
+  literals:
+  - users=admin pass
+bases:
+  - ../../base
+patchesStrategicMerge:
+  - patches/route.yaml
+  - patches/deployment.yaml
+  - patches/image-stream.yaml
