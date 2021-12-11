@@ -1,10 +1,11 @@
 """API wrapper for interacting with OpenShift authorization"""
-
+# pylint: disable=R0904
 import abc
 import pprint
 import json
 import re
 import os
+import time
 import requests
 from flask import Response
 
@@ -32,9 +33,27 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     def update_rolebindings(self, project_name, role, rolebindings_json):
         return
 
+    @abc.abstractmethod
+    def delete_moc_quota(self, project_name):
+        return
+
+    @abc.abstractmethod
+    def create_shift_quotas(self, project_name, quota_spec):
+        return
+
     @staticmethod
     def get_identity_provider():
         return os.environ["ACCT_MGT_IDENTITY_PROVIDER"]
+
+    @staticmethod
+    def split_quota_name(moc_quota_name):
+        name_array = moc_quota_name.split(":")
+        if len(name_array[0]) == 0:
+            scope = "Project"
+        else:
+            scope = name_array[0]
+        quota_name = name_array[1]
+        return (scope, quota_name)
 
     def __init__(self, url, token, logger):
         self.logger = logger
@@ -342,6 +361,59 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             mimetype="application/json",
         )
 
+    def replace_moc_quota(self, project_name, new_quota):
+        """This will delete all resourcequota objects in a project and create new ones based on the new_quota specification"""
+        quota_def = self.get_quota_definitions()
+        if "QuotaMultiplier" in new_quota["Quota"]:
+            quota_multiplier = new_quota["Quota"]["QuotaMultiplier"]
+            for quota in quota_def:
+                quota_def[quota]["value"] = (
+                    quota_def[quota]["coefficient"] * quota_multiplier
+                    + quota_def[quota]["base"]
+                )
+                if "units" in quota_def[quota]:
+                    quota_def[quota]["value"] = (
+                        str(quota_def[quota]["value"]) + quota_def[quota]["units"]
+                    )
+        # RBB: flesh out
+        # else:
+        #
+        # RBB  need to overwrite the value in the quotadef with the ones from the new_quota
+
+        delete_resp = self.delete_moc_quota(project_name)
+        if delete_resp.status_code not in [200, 201]:
+            return Response(
+                response="Unable to delete current quotas in {project_name}\n {delete_resp.status}",
+                status=delete_resp.status_code,
+                mimetype="application/json",
+            )
+        create_resp = self.create_shift_quotas(project_name, quota_def)
+        if create_resp.status_code not in [200, 201]:
+            return Response(
+                response="Unable to define Quotas",
+                status=400,
+                mimetype="application/json",
+            )
+        return Response(
+            response="MOC Quotas Replaced",
+            status=200,
+            mimetype="application/json",
+        )
+
+    def get_quota_definitions(self):
+        with open("/app/quota/quota", "r") as file:
+            quota = json.loads(file.read())
+        for k in quota:
+            quota[k]["value"] = None
+
+        # RBB Consider setting the project level resourcequotas to a minimum of 5 (min for how this works)
+        # RBB Get the quotas from openshift ResourceQuotas
+        # RBB url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+        # RBB resource_quotas=json.loads(self.get_request(url,True).json())
+        # RBB Iterate through the resource quota objects adding value into the quotas
+
+        return quota
+
 
 class MocOpenShift4x(MocOpenShift):
     """API implementation for OpenShift 4.x"""
@@ -471,3 +543,108 @@ class MocOpenShift4x(MocOpenShift):
                 payload["metadata"][key] = rolebindings_json["metadata"][key]
         self.logger.debug("payload -> 2: " + json.dumps(payload))
         return self.put_request(url, payload, True)
+
+    def get_moc_quota(self, project_name):
+        quota_def = self.get_quota_definitions()
+        quota = {}
+        for quota_name in quota_def:
+            quota[quota_name] = quota_def[quota_name]["value"]
+
+        quota_object = {
+            "Version": "0.9",
+            "Kind": "MocQuota",
+            "ProjectName": project_name,
+            "Quota": quota,
+        }
+        return quota_object
+
+    def create_shift_quotas(self, project_name, quota_spec):
+        quota_def = {}
+        # separate the quota_spec by quota_scope
+        for mangled_quota_name in quota_spec:
+            (scope, quota_name) = self.split_quota_name(mangled_quota_name)
+            if scope not in quota_def:
+                quota_def[scope] = {}
+            quota_def[scope][quota_name] = quota_spec[mangled_quota_name]
+        # create the openshift quota resources
+        quota_create_status_code = 200
+        quota_create_msg = ""
+        for scope, quota_item in quota_def.items():
+            resource_quota_json = {
+                "apiVersion": "v1",
+                "kind": "ResourceQuota",
+                "metadata": {"name": f"{project_name.lower()}-{scope.lower()}"},
+                "spec": {"hard": {}},
+            }
+            if scope != "Project":
+                resource_quota_json["spec"]["scopes"] = []
+                resource_quota_json["spec"]["scopes"].append(scope)
+            non_null_quota_count = 0
+            for quota_name in quota_item:
+                if quota_item[quota_name] is not None:
+                    non_null_quota_count += 1
+                    resource_quota_json["spec"]["hard"][quota_name] = quota_item[
+                        quota_name
+                    ]["value"]
+            if non_null_quota_count > 0:
+                url = (
+                    f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+                )
+                resp = self.post_request(url, resource_quota_json, True)
+                time.sleep(2)
+                if resp.status_code in [200, 201]:
+                    quota_create_msg = f"{quota_create_msg} Quota {project_name}/{quota_name} successfully created\n"
+                else:
+                    if resp.status_code > quota_create_status_code:
+                        quota_create_status_code = resp.status_code
+                quota_create_msg = f"{quota_create_msg} Quota {project_name}/{quota_name} creation failed"
+            if quota_create_status_code == 200:
+                quota_create_msg = f"All quota from {project_name} successfully created"
+        return Response(
+            response=quota_create_msg,
+            status=quota_create_status_code,
+            mimetype="application/json",
+        )
+
+    def get_resourcequotas(self, project_name) -> list:
+        """Returns a dictionary of all of the resourcequota objects"""
+        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+        rq_data = self.get_request(url, True).json()
+        self.logger.info(pprint.pformat(rq_data))
+        rq_list = []
+        for rq_name in rq_data["items"]:
+            rq_list.append(rq_name["metadata"]["name"])
+        return rq_list
+
+    def delete_quota(self, project_name, resourcequota_name):
+        """In an openshift namespace {project_name) delete a specified resourcequota"""
+        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resourcequota_name}"
+        payload = {
+            "kind": "DeleteOptions",
+            "apiVersion": "user.openshift.io/v1",
+            "gracePeriodSeconds": 300,
+        }
+        return self.del_request(url, payload, True)
+
+    def delete_moc_quota(self, project_name):
+        """deletes all resourcequotas from an openshift project"""
+        resourcequota_list = self.get_resourcequotas(project_name)
+        delete_msg = ""
+        delete_status_code = 200
+        for resourcequota in resourcequota_list:
+            resp = self.delete_quota(project_name, resourcequota)
+            if resp.status_code in [200, 201]:
+                delete_msg = f"{delete_msg} Quota {project_name}/{resourcequota} successfully deleted\n"
+            else:
+                if resp.status_code > overall_status_code:
+                    overall_status_code = resp.status_code
+                delete_msg = (
+                    f"{delete_msg} Quota {project_name}/{resourcequota} deletion failed"
+                )
+        if delete_status_code == 200:
+            delete_msg = f"All quota from {project_name} successfully deleted"
+        return Response(
+            response=delete_msg,
+            status=delete_status_code,
+            mimetype="application/json",
+        )
