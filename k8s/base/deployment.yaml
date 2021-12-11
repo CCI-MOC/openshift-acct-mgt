@@ -20,5 +20,13 @@ spec:
         ports:
         - containerPort: 8080
           protocol: TCP
+        volumeMounts:
+          - name: quota-vol
+            mountPath: /app/quota
+            readOnly: true
       serviceAccountName: onboarding-serviceaccount
       automountServiceAccountToken: True
+      volumes:
+        - name: quota-vol
+          configMap: 
+            name: openshift-quota-definition 

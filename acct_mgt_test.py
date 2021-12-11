@@ -123,28 +123,35 @@ def compare_results(result, pattern):
     return False
 
 
-def oc_resource_exist(resource, kind, name, project=None):
+def oc_resource_exist(resource, kind, name, project=None) -> bool:
     """This uses oc to determine if an openshift resource exists"""
     result = None
-    if project is None:
-        result = subprocess.run(
-            ["oc", "-o", "json", "get", resource, name],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=False,
-        )
-    else:
-        result = subprocess.run(
-            ["oc", "-o", "json", "-n", project, "get", resource, name],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=False,
-        )
+    cmd = ["oc", "-o", "json"]
+    if project is not None:
+        cmd = cmd + ["-n", project]
+    cmd = cmd + ["get", resource]
+    if name is not None:
+        cmd = cmd + [name]
+
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
     if result.returncode == 0:
         if result.stdout is not None:
             result_json = json.loads(result.stdout.decode("utf-8"))
-            if result_json["kind"] == kind and result_json["metadata"]["name"] == name:
-                return True
+            if "items" in result_json:
+                # if there is a list of items returned, pick the first one
+                if len(result_json["items"]) == 0:
+                    return False
+                result_json = result_json["items"][0]
+            if result_json["kind"] == kind:
+                if name is None:
+                    return True
+                if result_json["metadata"]["name"] == name:
+                    return True
     return False
 
 
@@ -354,6 +361,74 @@ def ms_user_project_remove_role(
     return compare_results(result, success_pattern)
 
 
+def is_moc_quota_empty(moc_quota) -> bool:
+    """This checks to see if an moc quota (name mangled) is empty"""
+    if "Quota" in moc_quota:
+        for item in moc_quota["Quota"]:
+            if moc_quota["Quota"][item] is not None:
+                return False
+    return True
+
+
+def ms_get_moc_quota(acct_mgt_url, project_name, auth_opts=None) -> dict:
+    """gets the moc quota specification (quota name mangled with scope) from the microserver"""
+    cmd = (
+        ["curl", "-X", "GET", "-kv"]
+        + auth_opts
+        + [f"{acct_mgt_url}/projects/{project_name}/quota"]
+    )
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+    moc_quota = {}
+    if result.returncode == 0:
+        line_array = result.stdout.decode("utf-8").split("\n")
+        json_text = ""
+        for line in line_array:
+            if line[0] == "{":
+                json_text = line
+        moc_quota = json.loads(json_text)
+    return moc_quota
+
+
+def ms_put_moc_quota(acct_mgt_url, project_name, moc_quota_def, auth_opts=None):
+    """The replaces the quota for the specific project - works even for the NULL Quota"""
+    cmd = (
+        ["curl", "-X", "PUT", "-kv", "-d", json.dumps(moc_quota_def)]
+        + auth_opts
+        + [f"{acct_mgt_url}/projects/{project_name}/quota"]
+    )
+    subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+
+def ms_del_moc_quota(acct_mgt_url, project_name, auth_opts=None):
+    """
+    This deletes all of the quota for the specified project
+
+    From the OpenShift side this deletes all of the resourcequota objects on the openshift project
+    """
+    cmd = (
+        ["curl", "-X", "DELETE", "-kv"]
+        + auth_opts
+        + [f"{acct_mgt_url}/projects/{project_name}/quota"]
+    )
+    subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+
 def test_project(acct_mgt_url, auth_opts):
     """This tests project existence/creation/deletion"""
     # if oc_resource_exist(
@@ -545,9 +620,7 @@ def test_project_user_role(acct_mgt_url, auth_opts):
     # Create a project
     if not oc_resource_exist("project", "Project", "test-002"):
         check.is_true(
-            ms_create_project(
-                acct_mgt_url, "test-002", '{"displayName":"test-002"}', auth_opts
-            ),
+            ms_create_project(acct_mgt_url, "test-002", None, auth_opts),
             "Project (test-002) was unable to be created",
         )
     check.is_true(
@@ -643,3 +716,52 @@ def test_project_user_role(acct_mgt_url, auth_opts):
                 is True,
                 "user " + "test0" + str(user_number) + "unable to be deleted",
             )
+
+
+def test_quota(acct_mgt_url, auth_opts):
+    """This tests quota support on the microserver"""
+    # 1) Create a project
+    project_name = "test-003"
+    if not oc_resource_exist("project", "Project", project_name):
+        check.is_true(
+            ms_create_project(acct_mgt_url, project_name, None, auth_opts),
+            f"Project ({project_name}) was unable to be created",
+        )
+    check.is_true(
+        oc_resource_exist("project", "Project", project_name),
+        f"Project ({project_name}) does not exist",
+    )
+
+    # 2) Check to see that the quota is empty
+    check.is_false(
+        oc_resource_exist("resourcequota", "ResourceQuota", None, project_name),
+        "Error, unexpected quota as it should be empty",
+    )
+
+    # 3) Can we delete an empty quota?
+    check.is_false(
+        ms_del_moc_quota(acct_mgt_url, project_name, auth_opts),
+        "Error: Empty quota deleted",
+    )
+
+    # 4) Create a quota using the QuotaMultiplier as adjutant/coldfront will initially do
+    ms_put_moc_quota(
+        acct_mgt_url,
+        project_name,
+        {
+            "Version": "0.9",
+            "Kind": "MocQuota",
+            "ProjectName": "rbb-test",
+            "Quota": {"QuotaMultiplier": 1},
+        },
+        auth_opts,
+    )
+    check.is_true(
+        oc_resource_exist("resourcequota", "ResourceQuota", None, project_name),
+        "quotas not there, but should be",
+    )
+    # cleanup after testing
+    check.is_true(
+        ms_delete_project(acct_mgt_url, project_name, auth_opts) is True,
+        "project (test-002) deleted",
+    )

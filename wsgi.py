@@ -361,5 +361,31 @@ def delete_moc_user(user_name):
     )
 
 
+@APP.route("/projects/<project>/quota", methods=["GET"])
+@AUTH.login_required
+def get_quota(project):
+    shift = get_openshift()
+    return Response(
+        response=json.dumps(shift.get_moc_quota(project)),
+        status=400,
+        mimetype="application/json",
+    )
+
+
+@APP.route("/projects/<project>/quota", methods=["PUT", "POST"])
+@AUTH.login_required
+def put_quota(project):
+    shift = get_openshift()
+    moc_quota = request.get_json(force=True)
+    return shift.replace_moc_quota(project, moc_quota)
+
+
+@APP.route("/projects/<project>/quota", methods=["DELETE"])
+@AUTH.login_required
+def delete_quota(project):
+    shift = get_openshift()
+    return shift.delete_moc_quota(project)
+
+
 if __name__ == "__main__":
     APP.run()

@@ -24,3 +24,4 @@ spec:
         - name: auth-vol
           secret:
             secretName: basic-auth
+
