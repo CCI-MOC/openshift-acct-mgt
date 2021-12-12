@@ -64,7 +64,13 @@ Running the tests requires passing `--amurl` as an argument with the URL endpoin
 for the OpenShift API. For CodeReady containers, that is
 `https://openshift-onboarding.apps-crc.testing`
 
+Additionally, the API should be tested using basic authentication by passing the 
+credentials in using the --basic argument.
+
 ```bash
+cd tests
 pip install -r test-requirements
-python3 -m pytest acct-mgt-test.py --amurl https://openshift-onboarding.apps-crc.testing
+python3 -m pytest acct-mgt-test.py --amurl https://openshift-onboarding.apps-crc.testing --basic admin:user
 ```
+
+
