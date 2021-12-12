@@ -1,0 +1,5 @@
+gunicorn
+Flask
+kubernetes
+openshift
+flask_httpauth
