@@ -70,7 +70,7 @@ credentials in using the --basic argument.
 ```bash
 cd tests
 pip install -r test-requirements
-python3 -m pytest acct-mgt-test.py --amurl https://openshift-onboarding.apps-crc.testing --basic admin:user
+python3 -m pytest amt_test*.py --amurl https://openshift-onboarding.apps-crc.testing --basic admin:user
 ```
 
 
