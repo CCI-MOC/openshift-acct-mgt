@@ -5,7 +5,10 @@ import pprint
 import json
 import re
 import os
+<<<<<<< HEAD
 import time
+=======
+>>>>>>> master
 import requests
 from flask import Response
 
@@ -33,6 +36,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     def update_rolebindings(self, project_name, role, rolebindings_json):
         return
 
+<<<<<<< HEAD
     @abc.abstractmethod
     def delete_moc_quota(self, project_name):
         return
@@ -41,10 +45,13 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     def create_shift_quotas(self, project_name, quota_spec):
         return
 
+=======
+>>>>>>> master
     @staticmethod
     def get_identity_provider():
         return os.environ["ACCT_MGT_IDENTITY_PROVIDER"]
 
+<<<<<<< HEAD
     @staticmethod
     def split_quota_name(moc_quota_name):
         name_array = moc_quota_name.split(":")
@@ -55,6 +62,8 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         quota_name = name_array[1]
         return (scope, quota_name)
 
+=======
+>>>>>>> master
     def __init__(self, url, token, logger):
         self.logger = logger
         self.set_token(token)
