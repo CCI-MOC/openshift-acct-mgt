@@ -78,9 +78,7 @@ def wait_while(project, pod_name, statuses, time_out=300):
         time_left = time_left - time_interval
         status = get_pod_status(project, pod_name)
 
-    if status in statuses:
-        return False
-    return True
+    return status in statuses
 
 
 def wait_until_done(oc_cmd, finished_pattern, time_out=30, decrement=5):
@@ -106,9 +104,7 @@ def wait_until_done(oc_cmd, finished_pattern, time_out=30, decrement=5):
             if pattern.match(line):
                 matched_line = line
                 done = True
-    if pattern.match(matched_line):
-        return True
-    return False
+    return pattern.match(matched_line)
 
 
 def compare_results(result, pattern):
@@ -139,11 +135,10 @@ def oc_resource_exist(resource, kind, name, project=None):
             stderr=subprocess.STDOUT,
             check=False,
         )
-    if result.returncode == 0:
-        if result.stdout is not None:
-            result_json = json.loads(result.stdout.decode("utf-8"))
-            if result_json["kind"] == kind and result_json["metadata"]["name"] == name:
-                return True
+    if result.returncode == 0 and result.stdout is not None:
+        result_json = json.loads(result.stdout.decode("utf-8"))
+        if result_json["kind"] == kind and result_json["metadata"]["name"] == name:
+            return True
     return False
 
 

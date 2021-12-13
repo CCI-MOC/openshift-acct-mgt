@@ -64,7 +64,7 @@ Running the tests requires passing `--amurl` as an argument with the URL endpoin
 for the OpenShift API. For CodeReady containers, that is
 `https://openshift-onboarding.apps-crc.testing`
 
-Addtionally --basic <user>:<pass> needs to be set in order to test baseic authentication.   
+Addtionally --basic <user>:<pass> needs to be set in order to test basic authentication.   
 The user and pass need to set to what you have configured.
 
 ```bash
