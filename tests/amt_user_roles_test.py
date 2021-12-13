@@ -1,7 +1,7 @@
 """ tests adding roles to users on projects """
 
 import pytest_check as check
-import acct_mgt_test as amt
+import amt_helper as amt
 
 
 def test_project_user_role(acct_mgt_url, auth_opts):

@@ -1,7 +1,7 @@
 """ Project  Test """
 
 import pytest_check as check
-import acct_mgt_test as amt
+import amt_helper as amt
 
 
 def test_project(acct_mgt_url, auth_opts):
