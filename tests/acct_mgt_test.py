@@ -162,7 +162,7 @@ def ms_check_project(acct_mgt_url, project_name, auth_opts=None):
 
 
 def ms_create_project(acct_mgt_url, project_name, display_name_str, auth_opts=None):
-    """s
+    """
     This creates a project (namespace) within openshift using the microserver
 
     expect this to be called with
