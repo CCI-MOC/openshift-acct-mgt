@@ -13,6 +13,7 @@ AUTH = HTTPBasicAuth()
 OPENSHIFT_URL = os.environ["OPENSHIFT_URL"]
 ADMIN_USERNAME = os.environ.get("ACCT_MGT_ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.environ["ACCT_MGT_ADMIN_PASSWORD"]
+AUTH_TOKEN = os.environ.get("ACCT_MGT_AUTH_TOKEN")
 
 if __name__ != "__main__":
     APP.logger = logging.getLogger("gunicorn.error")
@@ -28,12 +29,14 @@ class MocOpenShiftSingleton:
         """Wrapper for API openshift API class"""
 
         def __init__(self, url, logger):
-            with open(
-                "/var/run/secrets/kubernetes.io/serviceaccount/token", "r"
-            ) as file:
-                token = file.read()
-                self.shift = moc_openshift.MocOpenShift4x(url, token, logger)
-                APP.logger.info("using Openshift ver 4")
+            token = AUTH_TOKEN
+            if token is None:
+                with open(
+                    "/var/run/secrets/kubernetes.io/serviceaccount/token", "r"
+                ) as file:
+                    token = file.read()
+            self.shift = moc_openshift.MocOpenShift4x(url, token, logger)
+            APP.logger.info("using Openshift ver 4")
 
     openshift_instance = None
 
