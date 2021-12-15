@@ -3,3 +3,4 @@ Flask
 kubernetes
 openshift
 flask_httpauth
+python-dotenv
