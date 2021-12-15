@@ -1,16 +1,11 @@
 FROM python:3.8
 
-RUN mkdir -p /app
 WORKDIR /app
 
-COPY wsgi.py /app/wsgi.py
-COPY moc_openshift.py /app/moc_openshift.py
-COPY start.sh /app/start.sh
-COPY requirements.txt /app/requirements.txt
-COPY config.py /app/config.py
+COPY requirements.txt .
+RUN pip install -r requirements.txt 
 
-RUN cd /app \
- && pip3 install -r requirements.txt 
+COPY wsgi.py moc_openshift.py start.sh config.py .
 
 CMD ["/app/start.sh"]
 
