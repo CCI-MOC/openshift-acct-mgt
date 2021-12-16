@@ -76,6 +76,19 @@ oc adm policy add-cluster-role-to-user cluster-admin developer"
 oc login -u developer
 docker login -u developer -p developer 172.30.1.1:5000
 
+## Running the unit tests
+
+Before running the unit tests, make sure you have installed all the
+test dependencies defined in `test-requirements.txt`.
+
+To run the unit tests and produce a coverage report:
+
+```
+pytest tests/unit
+```
+
+This will place a coverage report in `htmlcov/index.html`.
+
 ## Running the service locally
 
 You will need to make sure you are authenticated to OpenShift (when
