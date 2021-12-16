@@ -4,14 +4,12 @@ import pytest_check as check
 import amt_helper as amt
 
 
-def test_project_user_role(acct_mgt_url, auth_opts):
+def test_project_user_role(acct_mgt_url, session):
     """This tests project role existence/creation/update/deletion"""
     # Create a project
     if not amt.oc_resource_exist("project", "Project", "test-002"):
         check.is_true(
-            amt.ms_create_project(
-                acct_mgt_url, "test-002", '{"displayName":"test-002"}', auth_opts
-            ),
+            amt.ms_create_project(acct_mgt_url, "test-002", "test-002", session),
             "Project (test-002) was unable to be created",
         )
     check.is_true(
@@ -23,7 +21,7 @@ def test_project_user_role(acct_mgt_url, auth_opts):
     for user_number in range(2, 6):
         if not amt.oc_resource_exist("users", "User", "test0" + str(user_number)):
             check.is_true(
-                amt.ms_create_user(acct_mgt_url, "test0" + str(user_number), auth_opts),
+                amt.ms_create_user(acct_mgt_url, "test0" + str(user_number), session),
                 "Unable to create user " + "test0" + str(user_number),
             )
         check.is_true(
@@ -37,16 +35,14 @@ def test_project_user_role(acct_mgt_url, auth_opts):
         amt.ms_user_project_get_role(
             acct_mgt_url,
             role_info,
-            r'{"msg": "user role exists \(test-002,test02,admin\)"}',
-            auth_opts,
+            session,
         )
     )
     check.is_true(
         amt.ms_user_project_add_role(
             acct_mgt_url,
             role_info,
-            r'{"msg": "rolebinding created \(test02,test-002,admin\)"}',
-            auth_opts,
+            session,
         ),
         "Role unable to be added",
     )
@@ -58,17 +54,15 @@ def test_project_user_role(acct_mgt_url, auth_opts):
         amt.ms_user_project_get_role(
             acct_mgt_url,
             role_info,
-            r'{"msg": "user role exists \(test-002,test02,admin\)"}',
-            auth_opts,
+            session,
         )
     )
 
-    check.is_true(
+    check.is_false(
         amt.ms_user_project_add_role(
             acct_mgt_url,
             role_info,
-            r'{"msg": "rolebinding already exists - unable to add \(test02,test-002,admin\)"}',
-            auth_opts,
+            session,
         ),
         "Added the same role to a user failed as it should",
     )
@@ -77,33 +71,32 @@ def test_project_user_role(acct_mgt_url, auth_opts):
         amt.ms_user_project_remove_role(
             acct_mgt_url,
             role_info,
-            r'{"msg": "removed role from user on project"}',
-            auth_opts,
+            session,
         ),
         "Removed rolebinding successful",
     )
     # Should write an oc command to check if a role was added to a user for a project.
     # however this is not easy based on the current way this is reported by oc so for
     # now just use the microserver
-    check.is_true(
+
+    check.is_false(
         amt.ms_user_project_remove_role(
             acct_mgt_url,
             role_info,
-            r'{"msg": "rolebinding does not exist - unable to delete \(test02,test-002,admin\)"}',
-            auth_opts,
+            session,
         ),
         "Unable to remove non-existing rolebinding",
     )
 
     # Clean up by removing the users and project (test-002)
     check.is_true(
-        amt.ms_delete_project(acct_mgt_url, "test-002", auth_opts) is True,
+        amt.ms_delete_project(acct_mgt_url, "test-002", session) is True,
         "project (test-002) deleted",
     )
     for user_number in range(2, 6):
         if amt.oc_resource_exist("users", "User", "test0" + str(user_number)):
             check.is_true(
-                amt.ms_delete_user(acct_mgt_url, "test0" + str(user_number), auth_opts)
+                amt.ms_delete_user(acct_mgt_url, "test0" + str(user_number), session)
                 is True,
                 "user " + "test0" + str(user_number) + "unable to be deleted",
             )

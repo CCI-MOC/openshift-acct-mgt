@@ -70,5 +70,5 @@ The user and pass need to set to what you have configured.
 ```bash
 cd tests
 pip install -r test-requirements
-python3 -m pytest --amurl https://openshift-onboarding.apps-crc.testing --basic user:pass
+python3 -m pytest --amurl http://openshift-onboarding.apps-crc.testing --basic user:pass
 ```
