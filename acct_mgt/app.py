@@ -38,7 +38,7 @@ def create_app(**config):
     APP.config.from_mapping(config)
 
     # Allow unit tests to explicitly disable environment configuration
-    if APP.config.get("DISABLE_ENV_CONFIG", False):
+    if not APP.config.get("DISABLE_ENV_CONFIG", False):
         APP.config.from_mapping(env_config())
 
     CLIENT = kubeclient.Client(
