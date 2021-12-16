@@ -23,4 +23,4 @@ jobs:
 
       - name: Run unit tests
         run: |
-          pytest tests/unit -v
+          pytest tests/unit -v --cov=acct_mgt --cov-report=term
