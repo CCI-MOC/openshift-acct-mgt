@@ -55,6 +55,9 @@ def create_app(**config):
         """Validates a username and password."""
 
         return (
+            APP.config.get("AUTH_DISABLED", "false").lower()
+            in ("true", "t", "yes", "1")
+        ) or (
             username == APP.config["ADMIN_USERNAME"]
             and password == APP.config["ADMIN_PASSWORD"]
         )
