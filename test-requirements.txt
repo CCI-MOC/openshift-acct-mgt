@@ -1,4 +1,5 @@
-pytest
-pytest_check
-requests
 pylint
+pytest
+pytest-check
+pytest-coverage
+requests
