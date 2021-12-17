@@ -1,5 +1,5 @@
 """API wrapper for interacting with OpenShift authorization"""
-# pylint: disable=R0904
+# pylint: disable=too-many-public-methods
 import abc
 import pprint
 import json
@@ -75,8 +75,9 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     def get_url(self):
         return self.url
 
-    # pylint: disable=no-self-use
-    def cnvt_project_name(self, project_name):
+
+    @staticmethod
+    def cnvt_project_name(project_name):
         suggested_project_name = re.sub("^[^A-Za-z0-9]+", "", project_name)
         suggested_project_name = re.sub("[^A-Za-z0-9]+$", "", suggested_project_name)
         suggested_project_name = re.sub("[^A-Za-z0-9-]+", "-", suggested_project_name)
@@ -400,7 +401,8 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             mimetype="application/json",
         )
 
-    def get_quota_definitions(self):
+    @staticmethod
+    def get_quota_definitions():
         with open("/app/quota/quota", "r") as file:
             quota = json.loads(file.read())
         for k in quota:
