@@ -32,7 +32,7 @@ def compare_results(result, pattern):
     return False
 
 
-def oc_resource_exist(resource, kind, name, project=None):
+def oc_resource_exist(resource, kind, name, project=None) -> bool:
     """This uses oc to determine if an openshift resource exists"""
     cmd = ["oc", "-o", "json"]
     if project is not None:
