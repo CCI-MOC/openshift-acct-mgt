@@ -81,7 +81,7 @@ def wait_while(project, pod_name, statuses, time_out=300):
     return status in statuses
 
 
-def wait_until_done(oc_cmd, finished_pattern, time_out=30, decrement=5):
+def wait_until_done(oc_cmd, finished_pattern, attempts=30, decrement=5):
     """
     This wait while an oc command is running, looking for a pattern that
     indicates it is finished.
@@ -90,9 +90,9 @@ def wait_until_done(oc_cmd, finished_pattern, time_out=30, decrement=5):
     done = False
     oc_array = oc_cmd.split(" ")
     matched_line = ""
-    while time_out > 0 and not done:
+    while attempts > 0 and not done:
         time.sleep(5)
-        time_out = time_out - decrement
+        attempts = attempts - decrement
         result = subprocess.run(
             oc_array,
             stdout=subprocess.PIPE,
@@ -358,11 +358,7 @@ def ms_user_project_remove_role(
 
 def is_moc_quota_empty(moc_quota) -> bool:
     """This checks to see if an moc quota (name mangled) is empty"""
-    if "Quota" in moc_quota:
-        for item in moc_quota["Quota"]:
-            if moc_quota["Quota"][item] is not None:
-                return False
-    return True
+    return all(item is None for item in moc_quota.get("Quota", []))
 
 
 def ms_get_moc_quota(acct_mgt_url, project_name, auth_opts=None) -> dict:
