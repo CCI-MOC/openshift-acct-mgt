@@ -155,11 +155,7 @@ def ms_user_project_remove_role(acct_mgt_url, role_info, session):
 
 def is_moc_quota_empty(moc_quota) -> bool:
     """This checks to see if an moc quota (name mangled) is empty"""
-    if "Quota" in moc_quota:
-        for item in moc_quota["Quota"]:
-            if moc_quota["Quota"][item] is not None:
-                return False
-    return True
+    return all(item is None for item in moc_quota.get("Quota", []))
 
 
 def ms_get_moc_quota(acct_mgt_url, project_name, auth_opts=None) -> dict:

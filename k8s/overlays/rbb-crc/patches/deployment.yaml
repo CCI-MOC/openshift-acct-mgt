@@ -15,6 +15,8 @@ spec:
             value: "4"
           - name: ACCT_MGT_IDENTITY_PROVIDER
             value: "Developer"
+          - name: ACCT_MGT_QUOTA_DEF_FILE
+            value: /app/quota_def/quota
         image: "docker.io/robertbartlettbaron/acct-mgt.x86:latest"
         volumeMounts:
           - name: auth-vol

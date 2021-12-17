@@ -75,7 +75,6 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     def get_url(self):
         return self.url
 
-
     @staticmethod
     def cnvt_project_name(project_name):
         suggested_project_name = re.sub("^[^A-Za-z0-9]+", "", project_name)
@@ -403,7 +402,8 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
     @staticmethod
     def get_quota_definitions():
-        with open("/app/quota/quota", "r") as file:
+        quota_def_file = os.getenv("ACCT_MGT_QUOTA_DEF_FILE")
+        with open(quota_def_file, "r") as file:
             quota = json.loads(file.read())
         for k in quota:
             quota[k]["value"] = None
@@ -488,14 +488,7 @@ class MocOpenShift4x(MocOpenShift):
 
     def delete_identity(self, id_user):
         url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{self.get_identity_provider()}:{id_user}"
-        payload = {
-            "kind": "DeleteOptions",
-            "apiVersion": "user.openshift.io/v1",
-            "providerName": self.get_identity_provider(),
-            "providerUserName": id_user,
-            "gracePeriodSeconds": 300,
-        }
-        return self.del_request(url, payload, True)
+        return self.del_request(url, None, True)
 
     def create_useridentitymapping(self, user_name, id_user):
         url = f"{self.get_url()}/apis/user.openshift.io/v1/useridentitymappings"
@@ -594,13 +587,15 @@ class MocOpenShift4x(MocOpenShift):
                 )
                 resp = self.post_request(url, resource_quota_json, True)
                 time.sleep(2)
+                # This colapses 5 error codes to the most sever error and just contcatenates the 5 messages
                 if resp.status_code in [200, 201]:
                     quota_create_msg = f"{quota_create_msg} Quota {project_name}/{quota_name} successfully created\n"
                 else:
                     if resp.status_code > quota_create_status_code:
                         quota_create_status_code = resp.status_code
-                quota_create_msg = f"{quota_create_msg} Quota {project_name}/{quota_name} creation failed"
-            if quota_create_status_code == 200:
+                    quota_create_msg = f"{quota_create_msg} Quota {project_name}/{quota_name} creation failed"
+            # if the 5 calls were successful, we can be less verbose
+            if quota_create_status_code in [200, 201]:
                 quota_create_msg = f"All quota from {project_name} successfully created"
         return Response(
             response=quota_create_msg,
@@ -621,12 +616,7 @@ class MocOpenShift4x(MocOpenShift):
     def delete_quota(self, project_name, resourcequota_name):
         """In an openshift namespace {project_name) delete a specified resourcequota"""
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resourcequota_name}"
-        payload = {
-            "kind": "DeleteOptions",
-            "apiVersion": "user.openshift.io/v1",
-            "gracePeriodSeconds": 300,
-        }
-        return self.del_request(url, payload, True)
+        return self.del_request(url, None, True)
 
     def delete_moc_quota(self, project_name):
         """deletes all resourcequotas from an openshift project"""
@@ -635,6 +625,7 @@ class MocOpenShift4x(MocOpenShift):
         delete_status_code = 200
         for resourcequota in resourcequota_list:
             resp = self.delete_quota(project_name, resourcequota)
+            # This colapses 5 error codes to the most sever error and just contcatenates the 5 messages
             if resp.status_code in [200, 201]:
                 delete_msg = f"{delete_msg} Quota {project_name}/{resourcequota} successfully deleted\n"
             else:
@@ -643,7 +634,8 @@ class MocOpenShift4x(MocOpenShift):
                 delete_msg = (
                     f"{delete_msg} Quota {project_name}/{resourcequota} deletion failed"
                 )
-        if delete_status_code == 200:
+        # if the 5 calls were successful, we can be less verbose
+        if delete_status_code in [200, 201]:
             delete_msg = f"All quota from {project_name} successfully deleted"
         return Response(
             response=delete_msg,
