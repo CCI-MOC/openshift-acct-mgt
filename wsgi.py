@@ -365,7 +365,7 @@ def get_quota(project):
     shift = get_openshift()
     return Response(
         response=json.dumps(shift.get_moc_quota(project)),
-        status=400,
+        status=200,
         mimetype="application/json",
     )
 
