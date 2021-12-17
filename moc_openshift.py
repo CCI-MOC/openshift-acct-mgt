@@ -49,7 +49,9 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         }
 
     def set_url(self, url):
-        self.url = "https://" + url
+        if not url.startswith("http"):
+            url = f"https://{url}"
+        self.url = url
 
     def get_url(self):
         return self.url

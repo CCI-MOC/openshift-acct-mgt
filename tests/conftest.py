@@ -34,7 +34,7 @@ def pytest_generate_tests(metafunc):
     if "amurl" in metafunc.fixturenames and option_value is not None:
         metafunc.parametrize("acct_mgt_url", [option_value])
     auth_str = metafunc.config.option.basic
-    # Don't quite understand why these environment variable aren't getting picked up
+    # not sure why this is not reading the environment variables
     acct_mgt_user_file = os.environ.get("ACCT_MGT_USER_FILE")
     acct_mgt_username = os.environ.get("ACCT_MGT_USERNAME")
     acct_mgt_password = os.environ.get("ACCT_MGT_PASSWORD")
@@ -48,6 +48,7 @@ def pytest_generate_tests(metafunc):
         with open(acct_mgt_user_file, "r", encoding="utf-8") as file:
             cred_str = file.read()
         cred = cred_str.split(" ")
+        print(f"cred: {cred[0]}, {cred[1]}")
         session.auth = (cred[0], cred[1])
     elif acct_mgt_username and acct_mgt_password:
         session.auth = (acct_mgt_username, acct_mgt_password)
