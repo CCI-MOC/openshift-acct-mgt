@@ -170,13 +170,11 @@ def create_moc_project(project_uuid, user_name=None):
             mimetype="application/json",
         )
     if not shift.project_exists(project_uuid):
-        project_name = project_uuid
-        if "Content-Length" in request.headers:
-            req_json = request.get_json(force=True)
-            if "displayName" in req_json:
-                project_name = req_json["displayName"]
+        if request.json:
+            project_name = request.json.get("displayName", project_uuid)
             APP.logger.debug("create project json: %s", project_name)
         else:
+            project_name = project_uuid
             APP.logger.debug("create project json: None")
 
         result = shift.create_project(project_uuid, project_name, user_name)
