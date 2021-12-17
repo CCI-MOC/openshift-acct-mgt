@@ -151,3 +151,71 @@ def ms_user_project_remove_role(acct_mgt_url, role_info, session):
     if resp.status_code in [200, 201]:
         return True
     return False
+
+
+def is_moc_quota_empty(moc_quota) -> bool:
+    """This checks to see if an moc quota (name mangled) is empty"""
+    if "Quota" in moc_quota:
+        for item in moc_quota["Quota"]:
+            if moc_quota["Quota"][item] is not None:
+                return False
+    return True
+
+
+def ms_get_moc_quota(acct_mgt_url, project_name, auth_opts=None) -> dict:
+    """gets the moc quota specification (quota name mangled with scope) from the microserver"""
+    cmd = (
+        ["curl", "-X", "GET", "-kv"]
+        + auth_opts
+        + [f"{acct_mgt_url}/projects/{project_name}/quota"]
+    )
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+    moc_quota = {}
+    if result.returncode == 0:
+        line_array = result.stdout.decode("utf-8").split("\n")
+        json_text = ""
+        for line in line_array:
+            if line[0] == "{":
+                json_text = line
+        moc_quota = json.loads(json_text)
+    return moc_quota
+
+
+def ms_put_moc_quota(acct_mgt_url, project_name, moc_quota_def, auth_opts=None):
+    """The replaces the quota for the specific project - works even for the NULL Quota"""
+    cmd = (
+        ["curl", "-X", "PUT", "-kv", "-d", json.dumps(moc_quota_def)]
+        + auth_opts
+        + [f"{acct_mgt_url}/projects/{project_name}/quota"]
+    )
+    subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+
+def ms_del_moc_quota(acct_mgt_url, project_name, auth_opts=None):
+    """
+    This deletes all of the quota for the specified project
+
+    From the OpenShift side this deletes all of the resourcequota objects on the openshift project
+    """
+    cmd = (
+        ["curl", "-X", "DELETE", "-kv"]
+        + auth_opts
+        + [f"{acct_mgt_url}/projects/{project_name}/quota"]
+    )
+    subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
