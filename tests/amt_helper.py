@@ -118,27 +118,35 @@ def compare_results(result, pattern):
     return False
 
 
-def oc_resource_exist(resource, kind, name, project=None):
+def oc_resource_exist(resource, kind, name, project=None) -> bool:
     """This uses oc to determine if an openshift resource exists"""
     result = None
-    if project is None:
-        result = subprocess.run(
-            ["oc", "-o", "json", "get", resource, name],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=False,
-        )
-    else:
-        result = subprocess.run(
-            ["oc", "-o", "json", "-n", project, "get", resource, name],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=False,
-        )
-    if result.returncode == 0 and result.stdout is not None:
-        result_json = json.loads(result.stdout.decode("utf-8"))
-        if result_json["kind"] == kind and result_json["metadata"]["name"] == name:
-            return True
+    cmd = ["oc", "-o", "json"]
+    if project is not None:
+        cmd = cmd + ["-n", project]
+    cmd = cmd + ["get", resource]
+    if name is not None:
+        cmd = cmd + [name]
+
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+    if result.returncode == 0:
+        if result.stdout is not None:
+            result_json = json.loads(result.stdout.decode("utf-8"))
+            if "items" in result_json:
+                # if there is a list of items returned, pick the first one
+                if len(result_json["items"]) == 0:
+                    return False
+                result_json = result_json["items"][0]
+            if result_json["kind"] == kind:
+                if name is None:
+                    return True
+                if result_json["metadata"]["name"] == name:
+                    return True
     return False
 
 
