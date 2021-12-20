@@ -16,7 +16,7 @@ spec:
         - name: ACCT_MGT_IDENTITY_PROVIDER
           value: KUSTOMIZE
         - name: ACCT_MGT_QUOTA_DEF_FILE
-          value: KUSTOMIZE
+          value: /app/quota/quota
         image: KUSTOMIZE
         imagePullPolicy: Always
         ports:
