@@ -64,11 +64,23 @@ Running the tests requires passing `--amurl` as an argument with the URL endpoin
 for the OpenShift API. For CodeReady containers, that is
 `https://openshift-onboarding.apps-crc.testing`
 
-Addtionally --basic <user>:<pass> needs to be set in order to test basic authentication.   
-The user and pass need to set to what you have configured.
+Addtionally You can either use the command line --basic <user>:<pass> or to set environment variables ACCT_MGT_USERNAME and ACCT_MGT_PASSWORD to your configured username and password respectively.  The command line
+credentials overide the credentials in the environment variables
 
 ```bash
 cd tests
 pip install -r test-requirements
 python3 -m pytest --amurl https://openshift-onboarding.apps-crc.testing --basic user:pass
 ```
+
+or 
+
+```bash
+cd tests
+pip install -r test-requirements
+export ACCT_MGT_USERNAME=admin
+export ACCT_MGT_PASSWORD=pass
+python3 -m pytest --amurl https://openshift-onboarding.apps-crc.testing
+```
+
+
