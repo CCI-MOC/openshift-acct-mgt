@@ -10,6 +10,11 @@ import moc_openshift
 APP = Flask(__name__)
 AUTH = HTTPBasicAuth()
 
+OPENSHIFT_URL = os.environ["OPENSHIFT_URL"]
+ADMIN_USERNAME = os.environ.get("ACCT_MGT_ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.environ["ACCT_MGT_ADMIN_PASSWORD"]
+AUTH_TOKEN = os.environ.get("ACCT_MGT_AUTH_TOKEN")
+
 if __name__ != "__main__":
     APP.logger = logging.getLogger("gunicorn.error")
     # logger level INFO = 20 see (https://docs.python.org/3/library/logging.html#levels)
@@ -24,12 +29,14 @@ class MocOpenShiftSingleton:
         """Wrapper for API openshift API class"""
 
         def __init__(self, url, logger):
-            with open(
-                "/var/run/secrets/kubernetes.io/serviceaccount/token", "r"
-            ) as file:
-                token = file.read()
-                self.shift = moc_openshift.MocOpenShift4x(url, token, logger)
-                APP.logger.info("using Openshift ver 4")
+            token = AUTH_TOKEN
+            if token is None:
+                with open(
+                    "/var/run/secrets/kubernetes.io/serviceaccount/token", "r"
+                ) as file:
+                    token = file.read()
+            self.shift = moc_openshift.MocOpenShift4x(url, token, logger)
+            APP.logger.info("using Openshift ver 4")
 
     openshift_instance = None
 
@@ -44,30 +51,15 @@ class MocOpenShiftSingleton:
 
 
 def get_openshift():
-    url = os.environ["OPENSHIFT_URL"]
-    shift = MocOpenShiftSingleton(url, APP.logger).get_openshift()
+    shift = MocOpenShiftSingleton(OPENSHIFT_URL, APP.logger).get_openshift()
     return shift
 
 
 @AUTH.verify_password
 def verify_password(username, password):
-    """Validates a username and password.
+    """Validates a username and password."""
 
-    WARNING: This function always succeeds (anybody can log in) if the auth
-    file is missing.
-    """
-
-    try:
-        with open("/app/auth/users", "r") as my_file:
-            user_str = my_file.read()
-        if user_str:
-            user = user_str.split(" ", 1)
-            if username == user[0] and password == user[1]:
-                return username
-    except FileNotFoundError:
-        return True
-
-    return False
+    return username == ADMIN_USERNAME and password == ADMIN_PASSWORD
 
 
 @APP.route("/users/<user_name>/projects/<project_name>/roles/<role>", methods=["GET"])

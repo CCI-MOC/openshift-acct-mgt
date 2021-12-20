@@ -75,3 +75,38 @@ oc login -u system:admin
 oc adm policy add-cluster-role-to-user cluster-admin developer"
 oc login -u developer
 docker login -u developer -p developer 172.30.1.1:5000
+
+## Running the service locally
+
+You will need to make sure you are authenticated to OpenShift (when
+run locally, we use `oc whoami -t` to get an authentication token).
+
+You will need to set the following environment variables:
+
+```
+OPENSHIFT_URL=$(oc whoami --show-server)
+ACCT_MGT_IDENTITY_PROVIDER=developer
+ACCT_MGT_ADMIN_PASSWORD=pass
+```
+
+Then start the server up like this:
+
+```
+ACCT_MGT_AUTH_TOKEN=$(oc whoami -t) \
+flask run -p 8080
+```
+
+Or alternately:
+
+```
+ACCT_MGT_AUTH_TOKEN=$(oc whoami -t) \
+gunicorn -b 127.0.0.1:8080 -c config.py wsgi:APP
+```
+
+This will expose the microservice on http://127.0.0.1:8080. You can
+access it like this:
+
+```
+$ curl -u admin:pass  http://localhost:8080/users/test-user
+{"msg": "user (test-user) does not exist"}
+```
