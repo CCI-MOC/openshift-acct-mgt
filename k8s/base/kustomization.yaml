@@ -3,6 +3,7 @@ commonLabels:
 namespace: onboarding
 resources:
 - cluster-role-binding.yaml
+- quotaConfigmap.yaml
 - deployment.yaml
 - image-stream.yaml
 - route.yaml

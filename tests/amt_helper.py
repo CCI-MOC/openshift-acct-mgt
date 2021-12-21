@@ -9,14 +9,15 @@ import subprocess
 import re
 import time
 import json
+import pprint
 
 
-def wait_until_lambda(lambdafunc, num_tries=5, time_between_attemps=5):
+def wait_until_lambda(lambdafunc, attempts=5, time_between_attemps=5):
     """
     This wait continue to try the lambdafunc up to n times
     """
-    while num_tries > 0 and not lambdafunc():
-        num_tries = num_tries - 1
+    while attempts > 0 and not lambdafunc():
+        attempts = attempts - 1
         time.sleep(time_between_attemps)
     return lambdafunc()
 
@@ -32,7 +33,7 @@ def compare_results(result, pattern):
     return False
 
 
-def oc_resource_exist(resource, kind, name, project=None):
+def oc_resource_exist(resource, kind, name, project=None) -> bool:
     """This uses oc to determine if an openshift resource exists"""
     cmd = ["oc", "-o", "json"]
     if project is not None:
@@ -40,6 +41,7 @@ def oc_resource_exist(resource, kind, name, project=None):
     cmd = cmd + ["get", resource]
     if name is not None:
         cmd = cmd + [name]
+    pprint.pprint(cmd)
     result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
@@ -48,8 +50,16 @@ def oc_resource_exist(resource, kind, name, project=None):
     )
     if result.returncode == 0 and result.stdout is not None:
         result_json = json.loads(result.stdout.decode("utf-8"))
-        if result_json["kind"] == kind and result_json["metadata"]["name"] == name:
-            return True
+        # This can return a list, so just look at the first item in the list
+        if result_json["kind"] == "List":
+            if len(result_json["items"]) == 0:
+                return False
+            result_json = result_json["items"][0]
+        if result_json["kind"] == kind:
+            if name is None:
+                return True
+            if result_json["metadata"]["name"] == name:
+                return True
     return False
 
 
@@ -148,6 +158,40 @@ def ms_user_project_remove_role(acct_mgt_url, role_info, session):
     resp = session.delete(
         f"{acct_mgt_url}/users/{role_info['user_name']}/projects/{role_info['project_name']}/roles/{role_info['role']}"
     )
+    if resp.status_code in [200, 201]:
+        return True
+    return False
+
+
+def is_moc_quota_empty(moc_quota) -> bool:
+    """This checks to see if an moc quota (name mangled) is empty"""
+    return all(item is None for item in moc_quota.get("Quota", []))
+
+
+def ms_get_moc_quota(acct_mgt_url, project_name, session) -> dict:
+    """gets the moc quota specification (quota name mangled with scope) from the microserver"""
+    resp = session.get(f"{acct_mgt_url}/projects/{project_name}/quota")
+    moc_quota = resp.json()
+    return moc_quota
+
+
+def ms_put_moc_quota(acct_mgt_url, project_name, moc_quota_def, session):
+    """The replaces the quota for the specific project - works even for the NULL Quota"""
+    resp = session.put(
+        f"{acct_mgt_url}/projects/{project_name}/quota", data=json.dumps(moc_quota_def)
+    )
+    if resp.status_code in [200, 201]:
+        return True
+    return False
+
+
+def ms_del_moc_quota(acct_mgt_url, project_name, session):
+    """
+    This deletes all of the quota for the specified project
+
+    From the OpenShift side this deletes all of the resourcequota objects on the openshift project
+    """
+    resp = session.delete(f"{acct_mgt_url}/projects/{project_name}/quota")
     if resp.status_code in [200, 201]:
         return True
     return False
