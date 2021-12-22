@@ -3,23 +3,15 @@ from unittest import mock
 import pytest
 
 from acct_mgt.app import create_app
+from acct_mgt.moc_openshift import MocOpenShift4x
 
 fake_200_response = mock.Mock(status_code=200, response="it worked", charset="utf-8")
 fake_400_response = mock.Mock(status_code=400, response="it failed", charset="utf-8")
 
 
 @pytest.fixture
-def moc():
-    """Cause acct_mgt.app.get_openshift to return a Mock object
-
-    This allows us to mock out all aspects of the backend api while testing the
-    web application.
-    """
-
-    with mock.patch("acct_mgt.app.get_openshift") as fake_get_openshift:
-        fake_openshift = mock.Mock()
-        fake_get_openshift.return_value = fake_openshift
-        yield fake_openshift
+def ocp():
+    return mock.Mock()
 
 
 @pytest.fixture
@@ -71,3 +63,25 @@ def client_auth(app_auth):
 
     with app_auth.test_client() as client:
         yield client
+
+
+@pytest.fixture
+def moc_api(ocp, app):
+    return MocOpenShift4x(
+        ocp,
+        app,
+    )
+
+
+@pytest.fixture
+def moc():
+    """Cause acct_mgt.app.get_openshift to return a Mock object
+
+    This allows us to mock out all aspects of the backend api while testing the
+    web application.
+    """
+
+    with mock.patch("acct_mgt.app.get_openshift") as fake_get_openshift:
+        fake_openshift = mock.Mock()
+        fake_get_openshift.return_value = fake_openshift
+        yield fake_openshift
