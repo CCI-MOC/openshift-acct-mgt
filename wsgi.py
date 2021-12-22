@@ -6,19 +6,28 @@ import os
 from flask import Flask, request, Response
 from flask_httpauth import HTTPBasicAuth
 
+import defaults
 import kubeclient
 import moc_openshift
 
-OPENSHIFT_URL = os.environ["OPENSHIFT_URL"]
-ADMIN_USERNAME = os.environ.get("ACCT_MGT_ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.environ["ACCT_MGT_ADMIN_PASSWORD"]
-AUTH_TOKEN = os.environ.get("ACCT_MGT_AUTH_TOKEN")
-
-CLIENT = kubeclient.Client(baseurl=OPENSHIFT_URL, token=AUTH_TOKEN)
+ENVPREFIX = "ACCT_MGT_"
 
 
-def get_openshift(client, logger):
-    return moc_openshift.MocOpenShift4x(client, logger)
+def env_config():
+    """Get configuration values from environment variables.
+
+    Look up all environment variables that start with ENVPREFIX (by default
+    "ACCT_MGT_"), strip the prefix, and store them in a dictionary. Return the
+    dictionary to the caller.
+    """
+
+    return {
+        k[len(ENVPREFIX) :]: v for k, v in os.environ.items() if k.startswith(ENVPREFIX)
+    }
+
+
+def get_openshift(client, app):
+    return moc_openshift.MocOpenShift4x(client, app)
 
 
 # pylint: disable=too-many-statements,too-many-locals,redefined-outer-name
@@ -26,15 +35,29 @@ def create_app(**config):
     APP = Flask(__name__)
     AUTH = HTTPBasicAuth()
 
+    APP.config.from_object(defaults)
     APP.config.from_mapping(config)
 
-    shift = get_openshift(CLIENT, APP.logger)
+    # Allow unit tests to explicitly disable environment configuration
+    if APP.config.get("DISABLE_ENV_CONFIG", False):
+        APP.config.from_mapping(env_config())
+
+    CLIENT = kubeclient.Client(
+        baseurl=APP.config.get("OPENSHIFT_URL"),
+        token=APP.config.get("AUTH_TOKEN"),
+        verify=APP.config.get("CA_PATH"),
+    )
+
+    shift = get_openshift(CLIENT, APP)
 
     @AUTH.verify_password
     def verify_password(username, password):
         """Validates a username and password."""
 
-        return username == ADMIN_USERNAME and password == ADMIN_PASSWORD
+        return (
+            username == APP.config["ADMIN_USERNAME"]
+            and password == APP.config["ADMIN_PASSWORD"]
+        )
 
     @APP.route(
         "/users/<user_name>/projects/<project_name>/roles/<role>", methods=["GET"]
