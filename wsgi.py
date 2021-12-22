@@ -5,6 +5,8 @@ import json
 import os
 from flask import Flask, request, Response
 from flask_httpauth import HTTPBasicAuth
+
+import kubeclient
 import moc_openshift
 
 OPENSHIFT_URL = os.environ["OPENSHIFT_URL"]
@@ -12,13 +14,11 @@ ADMIN_USERNAME = os.environ.get("ACCT_MGT_ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.environ["ACCT_MGT_ADMIN_PASSWORD"]
 AUTH_TOKEN = os.environ.get("ACCT_MGT_AUTH_TOKEN")
 
+CLIENT = kubeclient.Client(baseurl=OPENSHIFT_URL, token=AUTH_TOKEN)
 
-def get_openshift(url, token, logger):
-    if token is None:
-        with open("/var/run/secrets/kubernetes.io/serviceaccount/token", "r") as file:
-            token = file.read()
 
-    return moc_openshift.MocOpenShift4x(url, token, logger)
+def get_openshift(client, logger):
+    return moc_openshift.MocOpenShift4x(client, logger)
 
 
 # pylint: disable=too-many-statements,too-many-locals,redefined-outer-name
@@ -28,7 +28,7 @@ def create_app(**config):
 
     APP.config.from_mapping(config)
 
-    shift = get_openshift(OPENSHIFT_URL, AUTH_TOKEN, APP.logger)
+    shift = get_openshift(CLIENT, APP.logger)
 
     @AUTH.verify_password
     def verify_password(username, password):
