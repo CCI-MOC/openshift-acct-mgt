@@ -1,14 +1,13 @@
-"""WSGI application for MOC openshift account management microservice"""
+"""Flask application for MOC openshift account management microservice"""
 
-import logging
 import json
 import os
 from flask import Flask, request, Response
 from flask_httpauth import HTTPBasicAuth
 
-import defaults
-import kubeclient
-import moc_openshift
+from . import defaults
+from . import kubeclient
+from . import moc_openshift
 
 ENVPREFIX = "ACCT_MGT_"
 
@@ -356,13 +355,3 @@ def create_app(**config):
         return shift.delete_moc_quota(project)
 
     return APP
-
-
-APP = create_app()
-
-if __name__ == "__main__":
-    APP.run()
-else:
-    APP.logger = logging.getLogger("gunicorn.error")
-    # logger level INFO = 20 see (https://docs.python.org/3/library/logging.html#levels)
-    APP.logger.setLevel(20)
