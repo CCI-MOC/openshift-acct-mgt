@@ -6,16 +6,11 @@ import json
 import re
 import os
 import time
-import requests
 from flask import Response
 
 
 class MocOpenShift(metaclass=abc.ABCMeta):
     """API wrapper interface"""
-
-    headers = None
-    verify = False
-    url = None
 
     @abc.abstractmethod
     def get_user(self, user_name):
@@ -55,25 +50,9 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         quota_name = name_array[1]
         return (scope, quota_name)
 
-    def __init__(self, url, token, logger):
+    def __init__(self, client, logger):
         self.logger = logger
-        self.set_token(token)
-        self.set_url(url)
-
-    def set_token(self, token):
-        self.headers = {
-            "Authorization": "Bearer " + token,
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        }
-
-    def set_url(self, url):
-        if not url.startswith("http"):
-            url = f"https://{url}"
-        self.url = url
-
-    def get_url(self):
-        return self.url
+        self.client = client
 
     @staticmethod
     def cnvt_project_name(project_name):
@@ -81,57 +60,6 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         suggested_project_name = re.sub("[^A-Za-z0-9]+$", "", suggested_project_name)
         suggested_project_name = re.sub("[^A-Za-z0-9-]+", "-", suggested_project_name)
         return suggested_project_name
-
-    def get_request(self, url, debug=False):
-        if debug:
-            self.logger.info(f"headers: {self.headers}")
-            self.logger.info(f"url: {url}")
-        result = requests.get(url, headers=self.headers, verify=self.verify)
-        if debug:
-            self.logger.info(f"g: {str(result.status_code)}")
-            self.logger.info(f"g: {result.text}")
-        return result
-
-    def del_request(self, url, payload, debug=False):
-        if payload is None:
-            result = requests.delete(url, headers=self.headers, verify=self.verify)
-        else:
-            result = requests.delete(
-                url, headers=self.headers, data=json.dumps(payload), verify=self.verify
-            )
-        if debug:
-            self.logger.info("url: " + url)
-            if payload is not None:
-                self.logger.info(f"payload: {json.dumps(payload)}")
-            self.logger.info(f"d: {str(result.status_code)}")
-            self.logger.info(f"d: {result.text}")
-        return result
-
-    def put_request(self, url, payload, debug=False):
-        if payload is None:
-            result = requests.put(url, headers=self.headers, verify=self.verify)
-        else:
-            result = requests.put(
-                url, headers=self.headers, data=json.dumps(payload), verify=self.verify
-            )
-        if debug:
-            self.logger.info(f"url: {url}")
-            if payload is not None:
-                self.logger.info(f"payload: {json.dumps(payload)}")
-            self.logger.info(f"pu: {str(result.status_code)}")
-            self.logger.info(f"pu: {result.text}")
-        return result
-
-    def post_request(self, url, payload, debug=False):
-        result = requests.post(
-            url, headers=self.headers, data=json.dumps(payload), verify=False
-        )
-        if debug:
-            self.logger.info(f"url: {url}")
-            self.logger.info(f"payload: {json.dumps(payload)}")
-            self.logger.info(f"po: {str(result.status_code)}")
-            self.logger.info(f"po: {result.text}")
-        return result
 
     def user_exists(self, user_name):
         result = self.get_user(user_name)
@@ -422,15 +350,15 @@ class MocOpenShift4x(MocOpenShift):
 
     # member functions for projects
     def project_exists(self, project_name):
-        url = f"{self.get_url()}/apis/project.openshift.io/v1/projects/{project_name}"
-        result = self.get_request(url, True)
+        url = f"/apis/project.openshift.io/v1/projects/{project_name}"
+        result = self.client.get(url)
         if result.status_code in (200, 201):
             return True
         return False
 
     def create_project(self, project_name, display_name, user_name):
         # check project_name
-        url = f"{self.get_url()}/apis/project.openshift.io/v1/projects/"
+        url = "/apis/project.openshift.io/v1/projects/"
         payload = {
             "kind": "Project",
             "apiVersion": "project.openshift.io/v1",
@@ -442,78 +370,78 @@ class MocOpenShift4x(MocOpenShift):
                 },
             },
         }
-        return self.post_request(url, payload, True)
+        return self.client.post(url, json=payload)
 
     def delete_project(self, project_name):
         # check project_name
-        url = f"{self.get_url()}/apis/project.openshift.io/v1/projects/{project_name}"
-        return self.del_request(url, None, True)
+        url = f"/apis/project.openshift.io/v1/projects/{project_name}"
+        return self.client.delete(url)
 
     def get_user(self, user_name):
-        url = f"{self.get_url()}/apis/user.openshift.io/v1/users/{user_name}"
-        return self.get_request(url, True)
+        url = f"/apis/user.openshift.io/v1/users/{user_name}"
+        return self.client.get(url)
 
     # member functions for users
     def create_user(self, user_name, full_name):
-        url = f"{self.get_url()}/apis/user.openshift.io/v1/users"
+        url = "/apis/user.openshift.io/v1/users"
         payload = {
             "kind": "User",
             "apiVersion": "user.openshift.io/v1",
             "metadata": {"name": user_name},
             "fullName": full_name,
         }
-        return self.post_request(url, payload, True)
+        return self.client.post(url, json=payload)
 
     def delete_user(self, user_name):
-        url = f"{self.get_url()}/apis/user.openshift.io/v1/users/{user_name}"
-        return self.del_request(url, None, True)
+        url = f"/apis/user.openshift.io/v1/users/{user_name}"
+        return self.client.delete(url)
 
     # member functions for identities
     def identity_exists(self, id_user):
-        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{self.get_identity_provider()}:{id_user}"
-        result = self.get_request(url, True)
+        url = f"/apis/user.openshift.io/v1/identities/{self.get_identity_provider()}:{id_user}"
+        result = self.client.get(url)
         if result.status_code in (200, 201):
             return True
         return False
 
     def create_identity(self, id_user):
-        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities"
+        url = "/apis/user.openshift.io/v1/identities"
         payload = {
             "kind": "Identity",
             "apiVersion": "user.openshift.io/v1",
             "providerName": self.get_identity_provider(),
             "providerUserName": id_user,
         }
-        return self.post_request(url, payload, True)
+        return self.client.post(url, json=payload)
 
     def delete_identity(self, id_user):
-        url = f"{self.get_url()}/apis/user.openshift.io/v1/identities/{self.get_identity_provider()}:{id_user}"
-        return self.del_request(url, None, True)
+        url = f"/apis/user.openshift.io/v1/identities/{self.get_identity_provider()}:{id_user}"
+        return self.client.delete(url)
 
     def create_useridentitymapping(self, user_name, id_user):
-        url = f"{self.get_url()}/apis/user.openshift.io/v1/useridentitymappings"
+        url = "/apis/user.openshift.io/v1/useridentitymappings"
         payload = {
             "kind": "UserIdentityMapping",
             "apiVersion": "user.openshift.io/v1",
             "user": {"name": user_name},
             "identity": {"name": self.get_identity_provider() + ":" + id_user},
         }
-        return self.post_request(url, payload, True)
+        return self.client.post(url, json=payload)
 
     # member functions to associate roles for users on projects
     def get_rolebindings(self, project_name, role):
-        url = f"{self.get_url()}/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings/{role}"
-        result = self.get_request(url, True)
+        url = f"/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings/{role}"
+        result = self.client.get(url)
         self.logger.warning("get rolebindings: " + result.text)
         return result
 
     def list_rolebindings(self, project_name):
-        url = f"{self.get_url()}/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings"
-        result = self.get_request(url, True)
+        url = f"/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings"
+        result = self.client.get(url)
         return result
 
     def create_rolebindings(self, project_name, user_name, role):
-        url = f"{self.get_url()}/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings"
+        url = f"/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings"
         payload = {
             "kind": "RoleBinding",
             "apiVersion": "authorization.openshift.io/v1",
@@ -522,10 +450,10 @@ class MocOpenShift4x(MocOpenShift):
             "userNames": [user_name],
             "roleRef": {"name": role},
         }
-        return self.post_request(url, payload, True)
+        return self.client.post(url, json=payload)
 
     def update_rolebindings(self, project_name, role, rolebindings_json):
-        url = f"{self.get_url()}/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings/{role}"
+        url = f"/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings/{role}"
         # need to eliminate some fields that might be there
         payload = {}
         for key in rolebindings_json:
@@ -537,7 +465,7 @@ class MocOpenShift4x(MocOpenShift):
             if key in ["name", "namespace"]:
                 payload["metadata"][key] = rolebindings_json["metadata"][key]
         self.logger.debug("payload -> 2: " + json.dumps(payload))
-        return self.put_request(url, payload, True)
+        return self.client.put(url, json=payload)
 
     def get_moc_quota(self, project_name):
         quota_def = self.get_quota_definitions()
@@ -582,10 +510,8 @@ class MocOpenShift4x(MocOpenShift):
                         quota_name
                     ]["value"]
             if non_null_quota_count > 0:
-                url = (
-                    f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-                )
-                resp = self.post_request(url, resource_quota_json, True)
+                url = f"/api/v1/namespaces/{project_name}/resourcequotas"
+                resp = self.client.post(url, json=resource_quota_json)
                 time.sleep(2)
                 # This colapses 5 error codes to the most sever error and just contcatenates the 5 messages
                 if resp.status_code in [200, 201]:
@@ -605,8 +531,8 @@ class MocOpenShift4x(MocOpenShift):
 
     def get_resourcequotas(self, project_name) -> list:
         """Returns a dictionary of all of the resourcequota objects"""
-        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-        rq_data = self.get_request(url, True).json()
+        url = f"/api/v1/namespaces/{project_name}/resourcequotas"
+        rq_data = self.client.get(url).json()
         self.logger.info(pprint.pformat(rq_data))
         rq_list = []
         for rq_name in rq_data["items"]:
@@ -615,8 +541,8 @@ class MocOpenShift4x(MocOpenShift):
 
     def delete_quota(self, project_name, resourcequota_name):
         """In an openshift namespace {project_name) delete a specified resourcequota"""
-        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resourcequota_name}"
-        return self.del_request(url, None, True)
+        url = f"/api/v1/namespaces/{project_name}/resourcequotas/{resourcequota_name}"
+        return self.client.delete(url)
 
     def delete_moc_quota(self, project_name):
         """deletes all resourcequotas from an openshift project"""
