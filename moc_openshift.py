@@ -37,10 +37,6 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         return
 
     @staticmethod
-    def get_identity_provider():
-        return os.environ["ACCT_MGT_IDENTITY_PROVIDER"]
-
-    @staticmethod
     def split_quota_name(moc_quota_name):
         name_array = moc_quota_name.split(":")
         if len(name_array[0]) == 0:
@@ -50,9 +46,11 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         quota_name = name_array[1]
         return (scope, quota_name)
 
-    def __init__(self, client, logger):
-        self.logger = logger
+    def __init__(self, client, app):
         self.client = client
+        self.app = app
+        self.logger = app.logger
+        self.id_provider = app.config["IDENTITY_PROVIDER"]
 
     @staticmethod
     def cnvt_project_name(project_name):
@@ -69,7 +67,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
     def useridentitymapping_exists(self, user_name, id_user):
         user = self.get_user(user_name)
-        id_provider = self.get_identity_provider()
+        id_provider = self.id_provider
         if not (user.status_code in (200, 201)) and user["identities"]:
             id_str = f"{id_provider}:{id_user}"
             for identity in user["identities"]:
@@ -398,7 +396,7 @@ class MocOpenShift4x(MocOpenShift):
 
     # member functions for identities
     def identity_exists(self, id_user):
-        url = f"/apis/user.openshift.io/v1/identities/{self.get_identity_provider()}:{id_user}"
+        url = f"/apis/user.openshift.io/v1/identities/{self.id_provider}:{id_user}"
         result = self.client.get(url)
         if result.status_code in (200, 201):
             return True
@@ -409,13 +407,13 @@ class MocOpenShift4x(MocOpenShift):
         payload = {
             "kind": "Identity",
             "apiVersion": "user.openshift.io/v1",
-            "providerName": self.get_identity_provider(),
+            "providerName": self.id_provider,
             "providerUserName": id_user,
         }
         return self.client.post(url, json=payload)
 
     def delete_identity(self, id_user):
-        url = f"/apis/user.openshift.io/v1/identities/{self.get_identity_provider()}:{id_user}"
+        url = f"/apis/user.openshift.io/v1/identities/{self.id_provider}:{id_user}"
         return self.client.delete(url)
 
     def create_useridentitymapping(self, user_name, id_user):
@@ -424,7 +422,7 @@ class MocOpenShift4x(MocOpenShift):
             "kind": "UserIdentityMapping",
             "apiVersion": "user.openshift.io/v1",
             "user": {"name": user_name},
-            "identity": {"name": self.get_identity_provider() + ":" + id_user},
+            "identity": {"name": self.id_provider + ":" + id_user},
         }
         return self.client.post(url, json=payload)
 
