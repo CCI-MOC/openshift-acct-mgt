@@ -13,33 +13,12 @@ ADMIN_PASSWORD = os.environ["ACCT_MGT_ADMIN_PASSWORD"]
 AUTH_TOKEN = os.environ.get("ACCT_MGT_AUTH_TOKEN")
 
 
-class MocOpenShiftSingleton:
-    """Ensure a single instance of the OpenShift API"""
+def get_openshift(url, token, logger):
+    if token is None:
+        with open("/var/run/secrets/kubernetes.io/serviceaccount/token", "r") as file:
+            token = file.read()
 
-    # pylint: disable=too-few-public-methods
-    class MocOSInt:
-        """Wrapper for API openshift API class"""
-
-        def __init__(self, url, logger):
-            token = AUTH_TOKEN
-            if token is None:
-                with open(
-                    "/var/run/secrets/kubernetes.io/serviceaccount/token", "r"
-                ) as file:
-                    token = file.read()
-            self.shift = moc_openshift.MocOpenShift4x(url, token, logger)
-            APP.logger.info("using Openshift ver 4")
-
-    openshift_instance = None
-
-    def __init__(self, url, logger):
-        if not MocOpenShiftSingleton.openshift_instance:
-            MocOpenShiftSingleton.openshift_instance = MocOpenShiftSingleton.MocOSInt(
-                url, logger
-            )
-
-    def get_openshift(self):
-        return self.openshift_instance.shift
+    return moc_openshift.MocOpenShift4x(url, token, logger)
 
 
 # pylint: disable=too-many-statements,too-many-locals,redefined-outer-name
@@ -49,9 +28,7 @@ def create_app(**config):
 
     APP.config.from_mapping(config)
 
-    def get_openshift():
-        shift = MocOpenShiftSingleton(OPENSHIFT_URL, APP.logger).get_openshift()
-        return shift
+    shift = get_openshift(OPENSHIFT_URL, AUTH_TOKEN, APP.logger)
 
     @AUTH.verify_password
     def verify_password(username, password):
@@ -65,7 +42,6 @@ def create_app(**config):
     @AUTH.login_required
     def get_moc_rolebindings(project_name, user_name, role):
         # role can be one of Admin, Member, Reader
-        shift = get_openshift()
         if shift.user_rolebinding_exists(user_name, project_name, role):
             return Response(
                 response=json.dumps(
@@ -88,7 +64,6 @@ def create_app(**config):
     @AUTH.login_required
     def create_moc_rolebindings(project_name, user_name, role):
         # role can be one of Admin, Member, Reader
-        shift = get_openshift()
         result = shift.update_user_role_project(project_name, user_name, role, "add")
         if result.status_code in (200, 201):
             return Response(
@@ -108,7 +83,6 @@ def create_app(**config):
     @AUTH.login_required
     def delete_moc_rolebindings(project_name, user_name, role):
         # role can be one of Admin, Member, Reader
-        shift = get_openshift()
         result = shift.update_user_role_project(project_name, user_name, role, "del")
         if result.status_code in (200, 201):
             return Response(
@@ -125,7 +99,6 @@ def create_app(**config):
     @APP.route("/projects/<project_uuid>", methods=["GET"])
     @AUTH.login_required
     def get_moc_project(project_uuid):
-        shift = get_openshift()
         if shift.project_exists(project_uuid):
             return Response(
                 response=json.dumps({"msg": f"project exists ({project_uuid})"}),
@@ -142,7 +115,6 @@ def create_app(**config):
     @APP.route("/projects/<project_uuid>/owner/<user_name>", methods=["PUT"])
     @AUTH.login_required
     def create_moc_project(project_uuid, user_name=None):
-        shift = get_openshift()
         # first check the project_name is a valid openshift project name
         suggested_project_name = shift.cnvt_project_name(project_uuid)
         if project_uuid != suggested_project_name:
@@ -189,7 +161,6 @@ def create_app(**config):
     @APP.route("/projects/<project_uuid>", methods=["DELETE"])
     @AUTH.login_required
     def delete_moc_project(project_uuid):
-        shift = get_openshift()
         if shift.project_exists(project_uuid):
             result = shift.delete_project(project_uuid)
             if result.status_code in (200, 201):
@@ -214,7 +185,6 @@ def create_app(**config):
     @APP.route("/users/<user_name>", methods=["GET"])
     @AUTH.login_required
     def get_moc_user(user_name):
-        shift = get_openshift()
         if shift.user_exists(user_name):
             return Response(
                 response=json.dumps({"msg": f"user ({user_name}) exists"}),
@@ -237,7 +207,6 @@ def create_app(**config):
         full_name = user_name
         id_user = user_name  # until we support different user names see above.
 
-        shift = get_openshift()
         user_exists = False
         # use case if User doesn't exist, then create
         if not shift.user_exists(user_name):
@@ -298,7 +267,6 @@ def create_app(**config):
     @APP.route("/users/<user_name>", methods=["DELETE"])
     @AUTH.login_required
     def delete_moc_user(user_name):
-        shift = get_openshift()
         user_does_not_exist = 0
         # use case if User exists then delete
         if shift.user_exists(user_name):
@@ -344,7 +312,6 @@ def create_app(**config):
     @APP.route("/projects/<project>/quota", methods=["GET"])
     @AUTH.login_required
     def get_quota(project):
-        shift = get_openshift()
         return Response(
             response=json.dumps(shift.get_moc_quota(project)),
             status=200,
@@ -354,14 +321,12 @@ def create_app(**config):
     @APP.route("/projects/<project>/quota", methods=["PUT", "POST"])
     @AUTH.login_required
     def put_quota(project):
-        shift = get_openshift()
         moc_quota = request.get_json(force=True)
         return shift.replace_moc_quota(project, moc_quota)
 
     @APP.route("/projects/<project>/quota", methods=["DELETE"])
     @AUTH.login_required
     def delete_quota(project):
-        shift = get_openshift()
         return shift.delete_moc_quota(project)
 
     return APP
