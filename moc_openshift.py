@@ -4,7 +4,6 @@ import abc
 import pprint
 import json
 import re
-import os
 import time
 from flask import Response
 
@@ -51,6 +50,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         self.app = app
         self.logger = app.logger
         self.id_provider = app.config["IDENTITY_PROVIDER"]
+        self.quotafile = app.config["QUOTA_DEF_FILE"]
 
     @staticmethod
     def cnvt_project_name(project_name):
@@ -326,11 +326,10 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             mimetype="application/json",
         )
 
-    @staticmethod
-    def get_quota_definitions():
-        quota_def_file = os.getenv("ACCT_MGT_QUOTA_DEF_FILE")
-        with open(quota_def_file, "r") as file:
-            quota = json.loads(file.read())
+    def get_quota_definitions(self):
+        self.logger.info("reading quotas from %s", self.quotafile)
+        with open(self.quotafile, "r") as file:
+            quota = json.load(file)
         for k in quota:
             quota[k]["value"] = None
 
