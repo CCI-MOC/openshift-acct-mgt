@@ -77,7 +77,7 @@ def get_moc_rolebindings(project_name, user_name, role):
         )
     return Response(
         response=json.dumps(
-            {"msg": f"user role does not exists ({project_name},{user_name},{role})"}
+            {"msg": f"user role does not exist ({project_name},{user_name},{role})"}
         ),
         status=404,
         mimetype="application/json",
@@ -177,14 +177,12 @@ def create_moc_project(project_uuid, user_name=None):
                 mimetype="application/json",
             )
         return Response(
-            response=json.dumps(
-                {"msg": f"project unabled to be created ({project_uuid})"}
-            ),
+            response=json.dumps({"msg": f"unable to create project ({project_uuid})"}),
             status=400,
             mimetype="application/json",
         )
     return Response(
-        response=json.dumps({"msg": f"project currently exist ({project_uuid})"}),
+        response=json.dumps({"msg": f"project already exists ({project_uuid})"}),
         status=400,
         mimetype="application/json",
     )
@@ -203,16 +201,12 @@ def delete_moc_project(project_uuid):
                 mimetype="application/json",
             )
         return Response(
-            response=json.dumps(
-                {"msg": f"project unabled to be deleted ({project_uuid})"}
-            ),
+            response=json.dumps({"msg": f"unable to delete project ({project_uuid})"}),
             status=400,
             mimetype="application/json",
         )
     return Response(
-        response=json.dumps(
-            {"msg": f"unable to delete, project does not exist ({project_uuid})"}
-        ),
+        response=json.dumps({"msg": f"project does not exist ({project_uuid})"}),
         status=400,
         mimetype="application/json",
     )
@@ -293,7 +287,7 @@ def create_moc_user(user_name):
 
     if user_exists and identity_exists and user_identity_mapping_exists:
         return Response(
-            response=json.dumps({"msg": f"user currently exists ({user_name})"}),
+            response=json.dumps({"msg": f"user already exists ({user_name})"}),
             status=200,
             mimetype="application/json",
         )
@@ -314,7 +308,7 @@ def delete_moc_user(user_name):
         result = shift.delete_user(user_name)
         if result.status_code not in (200, 201):
             return Response(
-                response=json.dumps({"msg": f"unable to delete User ({user_name}) 1"}),
+                response=json.dumps({"msg": f"unable to delete user ({user_name}) 1"}),
                 status=400,
                 mimetype="application/json",
             )
@@ -338,9 +332,7 @@ def delete_moc_user(user_name):
 
     if user_does_not_exist == 3:
         return Response(
-            response=json.dumps(
-                {"msg": f"user does not currently exist ({user_name})"}
-            ),
+            response=json.dumps({"msg": f"user does not exist ({user_name})"}),
             status=200,
             mimetype="application/json",
         )
