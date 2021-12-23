@@ -1,0 +1,4 @@
+.*
+htmlcov
+Pipfile*
+__pycache__
