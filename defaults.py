@@ -1,4 +1,4 @@
 """Default values for Flask app configuration"""
 
 ADMIN_USERNAME = "admin"
-QUOTA_FILE = "quotas.json"
+QUOTA_DEF_FILE = "quotas.json"
