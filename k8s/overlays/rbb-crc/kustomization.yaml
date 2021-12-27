@@ -1,7 +1,7 @@
 secretGenerator:
 - name: basic-auth
   namespace: onboarding
-  behavior: create  
+  behavior: create
   literals:
   - users=admin pass
 bases:

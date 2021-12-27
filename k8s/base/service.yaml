@@ -4,9 +4,9 @@ metadata:
   name: onboarding
 spec:
   ports:
-  - name: 443-https
-    port: 443
+  - name: http
+    port: 8080
     protocol: TCP
-    targetPort: 8080
+    targetPort: http
   selector:
     app: onboarding

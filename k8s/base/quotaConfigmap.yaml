@@ -3,9 +3,9 @@ apiVersion: v1
 metadata:
   name: openshift-quota-definition
 data:
-  quota: |- 
-    { 
-    ":persistentvolumeclaims":        { "base": 2, "coefficient": 0 }, 
+  quotas.json: |-
+    {
+    ":persistentvolumeclaims":        { "base": 2, "coefficient": 0 },
     ":requests.storage":              { "base": 2, "coefficient": 0 },
     ":requests.ephemeral-storage":    { "base": 2, "coefficient": 8, "units": "Gi"  },
     ":limits.ephemeral-storage":      { "base": 2, "coefficient": 8, "units": "Gi"  },
@@ -34,6 +34,3 @@ data:
     "NotTerminating:requests.cpu":    { "base": 2, "coefficient": 2 },
     "NotTerminating:limits.cpu":      { "base": 2, "coefficient": 2 }
     }
-
-
-

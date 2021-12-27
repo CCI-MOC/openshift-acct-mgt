@@ -5,6 +5,11 @@ repos:
       - id: black
         language_version: python3.9
 
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.26.3
+    hooks:
+      - id: yamllint
+
   # Pylint must be run from a *local* hook because it performs
   # dynamic analysis that won't work when running from the isolated
   # virtual environment that pre-commit uses by default.

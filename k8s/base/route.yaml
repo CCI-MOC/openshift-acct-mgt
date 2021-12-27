@@ -1,11 +1,12 @@
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: onboarding-route
+  name: onboarding
 spec:
-  host: APP_URL  # Overlaid
   port:
-    targetPort: 8080
+    targetPort: http
   to:
     kind: Service
     name: onboarding
+  tls:
+    termination: edge
