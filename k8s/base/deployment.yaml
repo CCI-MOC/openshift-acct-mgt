@@ -9,26 +9,30 @@ spec:
       containers:
       - name: onboarding
         env:
-        - name: OPENSHIFT_URL
-          value: KUSTOMIZE
-        - name: OPENSHIFT_VERSION
-          value: KUSTOMIZE
-        - name: ACCT_MGT_IDENTITY_PROVIDER
-          value: KUSTOMIZE
-        - name: ACCT_MGT_QUOTA_DEF_FILE
-          value: /app/quota/quota
-        image: KUSTOMIZE
+          - name: OPENSHIFT_VERSION
+            value: "4"
+          - name: OPENSHIFT_URL
+            value: https://kubernetes.default.svc
+          - name: ACCT_MGT_QUOTA_DEF_FILE
+            value: /app/quota/quotas.json
+        envFrom:
+          - secretRef:
+              name: onboarding-credentials
+          - configMapRef:
+              name: onboarding-config
+        image: openshift-acct-mgt:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 8080
-          protocol: TCP
+          - name: http
+            containerPort: 8080
+            protocol: TCP
         volumeMounts:
           - name: quota-vol
             mountPath: /app/quota
             readOnly: true
-      serviceAccountName: onboarding-serviceaccount
-      automountServiceAccountToken: True
       volumes:
         - name: quota-vol
-          configMap: 
-            name: openshift-quota-definition 
+          configMap:
+            name: openshift-quota-definition
+      serviceAccountName: onboarding-serviceaccount
+      automountServiceAccountToken: true
