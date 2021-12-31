@@ -629,8 +629,8 @@ class MocOpenShift4x(MocOpenShift):
             if resp.status_code in [200, 201]:
                 delete_msg = f"{delete_msg} Quota {project_name}/{resourcequota} successfully deleted\n"
             else:
-                if resp.status_code > overall_status_code:
-                    overall_status_code = resp.status_code
+                if resp.status_code > delete_status_code:
+                    delete_status_code = resp.status_code
                 delete_msg = (
                     f"{delete_msg} Quota {project_name}/{resourcequota} deletion failed"
                 )
