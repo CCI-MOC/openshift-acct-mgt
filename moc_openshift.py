@@ -5,6 +5,7 @@ import pprint
 import json
 import re
 import time
+
 from flask import Response
 
 
@@ -287,8 +288,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             mimetype="application/json",
         )
 
-    def replace_moc_quota(self, project_name, new_quota):
-        """This will delete all resourcequota objects in a project and create new ones based on the new_quota specification"""
+    def resolve_quotas(self, new_quota):
         quota_def = self.get_quota_definitions()
         if "QuotaMultiplier" in new_quota["Quota"]:
             quota_multiplier = new_quota["Quota"]["QuotaMultiplier"]
@@ -301,10 +301,17 @@ class MocOpenShift(metaclass=abc.ABCMeta):
                     quota_def[quota]["value"] = (
                         str(quota_def[quota]["value"]) + quota_def[quota]["units"]
                     )
+
         # RBB: flesh out
         # else:
         #
         # RBB  need to overwrite the value in the quotadef with the ones from the new_quota
+
+        return quota_def
+
+    def replace_moc_quota(self, project_name, new_quota):
+        """This will delete all resourcequota objects in a project and create new ones based on the new_quota specification"""
+        quota_def = self.resolve_quotas(new_quota)
 
         delete_resp = self.delete_moc_quota(project_name)
         if delete_resp.status_code not in [200, 201]:
@@ -478,6 +485,23 @@ class MocOpenShift4x(MocOpenShift):
         }
         return quota_object
 
+    def wait_for_quota_to_settle(self, project_name, resource_quota_json):
+        """Wait for quota on resourcequotas to settle.
+
+        When creating a new resourcequota that sets a quota on resourcequota objects, we need to
+        wait for OpenShift to calculate the quota usage before we attempt to create any new
+        resourcequota objects.
+        """
+
+        if "resourcequotas" in resource_quota_json["spec"]["hard"]:
+            self.logger.info("waiting for resourcequota quota")
+            url = f"/api/v1/namespaces/{project_name}/resourcequotas/{resource_quota_json['metadata']['name']}"
+            while True:
+                resp = self.client.get(url)
+                if "resourcequotas" in resp.json()["status"].get("used", {}):
+                    break
+                time.sleep(0.1)
+
     def create_shift_quotas(self, project_name, quota_spec):
         quota_def = {}
         # separate the quota_spec by quota_scope
@@ -497,8 +521,7 @@ class MocOpenShift4x(MocOpenShift):
                 "spec": {"hard": {}},
             }
             if scope != "Project":
-                resource_quota_json["spec"]["scopes"] = []
-                resource_quota_json["spec"]["scopes"].append(scope)
+                resource_quota_json["spec"]["scopes"] = [scope]
             non_null_quota_count = 0
             for quota_name in quota_item:
                 if quota_item[quota_name] is not None:
@@ -509,9 +532,9 @@ class MocOpenShift4x(MocOpenShift):
             if non_null_quota_count > 0:
                 url = f"/api/v1/namespaces/{project_name}/resourcequotas"
                 resp = self.client.post(url, json=resource_quota_json)
-                time.sleep(2)
                 # This colapses 5 error codes to the most sever error and just contcatenates the 5 messages
                 if resp.status_code in [200, 201]:
+                    self.wait_for_quota_to_settle(project_name, resource_quota_json)
                     quota_create_msg = f"{quota_create_msg} Quota {project_name}/{quota_name} successfully created\n"
                 else:
                     if resp.status_code > quota_create_status_code:
