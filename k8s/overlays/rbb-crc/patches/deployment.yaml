@@ -17,12 +17,14 @@ spec:
             value: "Developer"
           - name: ACCT_MGT_QUOTA_DEF_FILE
             value: /app/quota/quota
+          - name: ACCT_MGT_ADMIN_USER
+            valueFrom:
+              secretKeyRef:
+                name: basic-auth
+                key: username
+          - name: ACCT_MGT_ADMIN_PASS
+            valueFrom:
+              secretKeyRef:
+                name: basic-auth
+                key: password
         image: "docker.io/robertbartlettbaron/acct-mgt.x86:latest"
-        volumeMounts:
-          - name: auth-vol
-            mountPath: /app/auth
-            readOnly: true
-      volumes:
-        - name: auth-vol
-          secret:
-            secretName: basic-auth

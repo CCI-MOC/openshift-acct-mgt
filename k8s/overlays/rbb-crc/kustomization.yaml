@@ -3,10 +3,12 @@ secretGenerator:
   namespace: onboarding
   behavior: create
   literals:
-  - users=admin pass
+  - username=admin
+  - password=pass
 bases:
   - ../../base
-patchesStrategicMerge:
+resources:
   - patches/route.yaml
+patchesStrategicMerge:
   - patches/deployment.yaml
   - patches/image-stream.yaml

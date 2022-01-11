@@ -359,7 +359,15 @@ def get_quota(project):
 def put_quota(project):
     shift = get_openshift()
     moc_quota = request.get_json(force=True)
-    return shift.replace_moc_quota(project, moc_quota)
+    return shift.update_moc_quota(project, moc_quota)
+
+
+@APP.route("/projects/<project>/quota", methods=["PATCH"])
+@AUTH.login_required
+def patch_quota(project):
+    shift = get_openshift()
+    moc_quota = request.json
+    return shift.update_moc_quota(project, moc_quota, False)
 
 
 @APP.route("/projects/<project>/quota", methods=["DELETE"])

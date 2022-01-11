@@ -195,3 +195,96 @@ def ms_del_moc_quota(acct_mgt_url, project_name, session):
     if resp.status_code in [200, 201]:
         return True
     return False
+
+
+# These functions are used to determine the quota multiplier based on
+# the quota returned.
+#
+#               ((moc_quota from multiplier) - (moc_quota from multiplier 0))
+#  multiplier = -------------------------------------------------------------
+#               ((moc_quota from multiplier 1)-(moc_quota from multiplier 0)
+#
+# Could eventually test different units via logrithms
+# to both handle the order of magnitude and conversion of base2 to base10
+
+
+def remove_quota_units(moc_quota):
+    """
+    This just removes possible units from the quota values
+
+    for example, 80Gi becomes 80
+
+    This isn't a problem as we are assuming that the quotas are all the same unit
+    in the
+    """
+    ret_quota = {}
+    for quota, value in moc_quota.items():
+        if isinstance(value, str):
+            ret_quota[quota] = int("".join(filter(str.isdigit, value)))
+        else:
+            ret_quota[quota] = value
+    return ret_quota
+
+
+def are_all_quota_same_value(moc_quota, value):
+    """returns true if any quota value is non-null
+
+    expect to be used like:
+
+    are_all_quota_same_value(moc_quota["Quota"], None)
+        returns true if all values are None
+
+    are_all_quota_same_value(moc_quota["Quota"], 2)
+        returns true if all values are 2
+    """
+    for quota_value in moc_quota.values():
+        if quota_value and quota_value != value:
+            return False
+    return True
+
+
+def diff_moc_quota(moc_quota1, moc_quota2):
+    """returns the difference moc_quota1 - moc_quota2
+
+    expected to be used like
+
+    dquota = diff_moc_quota(moc_quota1["Quota"],moc_quota2["Quota"])
+    """
+    diff_quota = {}
+    for quota in moc_quota1:
+        diff_quota[quota] = None
+        if quota not in moc_quota2:
+            moc_quota2[quota] = None
+    for quota in moc_quota2:
+        diff_quota[quota] = None
+        if quota not in moc_quota1:
+            moc_quota1[quota] = None
+    for quota in diff_quota:
+        if moc_quota1[quota] is None and moc_quota2[quota] is None:
+            diff_quota[quota] = None
+        elif moc_quota1[quota] is None and moc_quota2[quota] is not None:
+            diff_quota[quota] = -moc_quota2[quota]
+        elif moc_quota1[quota] is not None and moc_quota2[quota] is None:
+            diff_quota[quota] = moc_quota1[quota]
+        else:
+            diff_quota[quota] = moc_quota1[quota] - moc_quota2[quota]
+    return diff_quota
+
+
+def div_moc_quota(moc_quota1, moc_quota2):
+    """returns values ov moc_quota1 / moc_quota2"""
+    div_quota = {}
+    for quota in moc_quota1:
+        div_quota[quota] = None
+        if quota not in moc_quota2:
+            moc_quota2[quota] = None
+    for quota in moc_quota2:
+        div_quota[quota] = None
+        if quota not in moc_quota1:
+            moc_quota1[quota] = None
+    for quota in div_quota:
+        if moc_quota1[quota] in [None, 0] or moc_quota2[quota] in [None, 0]:
+            div_quota[quota] = None
+        else:
+            div_quota[quota] = moc_quota1[quota] / moc_quota2[quota]
+    return div_quota

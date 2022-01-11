@@ -41,6 +41,10 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     def create_shift_quotas(self, project_name, quota_spec):
         return
 
+    @abc.abstractmethod
+    def get_resourcequota_details(self, project_name) -> dict:
+        return {}
+
     @staticmethod
     def get_identity_provider():
         return os.environ["ACCT_MGT_IDENTITY_PROVIDER"]
@@ -361,7 +365,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             mimetype="application/json",
         )
 
-    def replace_moc_quota(self, project_name, new_quota):
+    def update_moc_quota(self, project_name, new_quota, replace=True):
         """This will delete all resourcequota objects in a project and create new ones based on the new_quota specification"""
         quota_def = self.get_quota_definitions()
         if "QuotaMultiplier" in new_quota["Quota"]:
@@ -375,10 +379,15 @@ class MocOpenShift(metaclass=abc.ABCMeta):
                     quota_def[quota]["value"] = (
                         str(quota_def[quota]["value"]) + quota_def[quota]["units"]
                     )
-        # RBB: flesh out
-        # else:
-        #
-        # RBB  need to overwrite the value in the quotadef with the ones from the new_quota
+        else:
+            if replace is False:
+                existing_quota = self.get_moc_quota_from_resourcequotas(project_name)
+                for quota, value in existing_quota:
+                    quota_def[quota]["value"] = value
+            self.logger.info("new_quota")
+            self.logger.info(pprint.pformat(new_quota))
+            for quota, value in new_quota["Quota"].items():
+                quota_def[quota]["value"] = value
 
         delete_resp = self.delete_moc_quota(project_name)
         if delete_resp.status_code not in [200, 201]:
@@ -400,6 +409,33 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             mimetype="application/json",
         )
 
+    def get_moc_quota_from_resourcequotas(self, project_name) -> dict:
+        """This returns a dictionary suitable for merging in with the specification from Adjutant/ColdFront"""
+        rq_data = self.get_resourcequota_details(project_name)
+        # url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+        # rq_data = self.get_request(url, True)
+        moc_quota = {}
+        for rq_name, rq_spec in rq_data.items():
+            self.logger.info(f"processing resourcequota: {project_name}:{rq_name}")
+            scope_list = ["Project"]
+            if "scopes" in rq_spec:
+                scope_list = rq_spec["scopes"]
+            if "hard" in rq_spec:
+                for quota_name, quota_value in rq_spec["hard"].items():
+                    for scope_item in scope_list:
+                        if scope_item == "Project":
+                            moc_quota_name = f":{quota_name}"
+                        else:
+                            moc_quota_name = f"{scope_item}:{quota_name}"
+                        # Here we are just choosing an existing quota
+                        # In the case of our service, there will be no conflicting
+                        # quotas as it is setup by default.
+                        if moc_quota_name not in moc_quota:
+                            moc_quota[moc_quota_name] = quota_value
+        self.logger.info("get moc_quota_from_resourceQuotas")
+        self.logger.info(pprint.pformat(moc_quota))
+        return moc_quota
+
     @staticmethod
     def get_quota_definitions():
         quota_def_file = os.getenv("ACCT_MGT_QUOTA_DEF_FILE")
@@ -407,13 +443,6 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             quota = json.loads(file.read())
         for k in quota:
             quota[k]["value"] = None
-
-        # RBB Consider setting the project level resourcequotas to a minimum of 5 (min for how this works)
-        # RBB Get the quotas from openshift ResourceQuotas
-        # RBB url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-        # RBB resource_quotas=json.loads(self.get_request(url,True).json())
-        # RBB Iterate through the resource quota objects adding value into the quotas
-
         return quota
 
 
@@ -544,6 +573,9 @@ class MocOpenShift4x(MocOpenShift):
         quota = {}
         for quota_name in quota_def:
             quota[quota_name] = quota_def[quota_name]["value"]
+        quota_from_project = self.get_moc_quota_from_resourcequotas(project_name)
+        for quota_name, quota_value in quota_from_project.items():
+            quota[quota_name] = quota_value
 
         quota_object = {
             "Version": "0.9",
@@ -603,17 +635,30 @@ class MocOpenShift4x(MocOpenShift):
             mimetype="application/json",
         )
 
+    def get_resourcequota_details(self, project_name) -> dict:
+        """Returns a list of resourcequota names in the spcified project"""
+        url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+        rq_data = self.get_request(url, True).json()
+        self.logger.info("get_resourcequota_details")
+        self.logger.info(pprint.pformat(rq_data))
+        rq_dict = {}
+        if rq_data["kind"] == "ResourceQuotaList":
+            for rq_info in rq_data["items"]:
+                rq_dict[rq_info["metadata"]["name"]] = rq_info["spec"]
+        return rq_dict
+
     def get_resourcequotas(self, project_name) -> list:
         """Returns a dictionary of all of the resourcequota objects"""
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
         rq_data = self.get_request(url, True).json()
+        self.logger.info("get_resourcequotas")
         self.logger.info(pprint.pformat(rq_data))
         rq_list = []
         for rq_name in rq_data["items"]:
             rq_list.append(rq_name["metadata"]["name"])
         return rq_list
 
-    def delete_quota(self, project_name, resourcequota_name):
+    def delete_resourcequota(self, project_name, resourcequota_name):
         """In an openshift namespace {project_name) delete a specified resourcequota"""
         url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas/{resourcequota_name}"
         return self.del_request(url, None, True)
@@ -624,7 +669,7 @@ class MocOpenShift4x(MocOpenShift):
         delete_msg = ""
         delete_status_code = 200
         for resourcequota in resourcequota_list:
-            resp = self.delete_quota(project_name, resourcequota)
+            resp = self.delete_resourcequota(project_name, resourcequota)
             # This colapses 5 error codes to the most sever error and just contcatenates the 5 messages
             if resp.status_code in [200, 201]:
                 delete_msg = f"{delete_msg} Quota {project_name}/{resourcequota} successfully deleted\n"
