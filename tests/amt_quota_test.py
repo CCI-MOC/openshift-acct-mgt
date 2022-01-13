@@ -110,6 +110,35 @@ def test_quota(acct_mgt_url, session):
         "Quotas Don't match, but they should",
     )
 
+    # modifying the above quota
+    quota1 = {
+        "Version": "0.9",
+        "Kind": "MocQuota",
+        "ProjectName": "rbb-test",
+        "Quota": {":resourcequotas": None},
+    }
+
+    amt.ms_patch_moc_quota(
+        acct_mgt_url,
+        project_name,
+        quota1,
+        session,
+    )
+
+    ret_quota = amt.ms_get_moc_quota(acct_mgt_url, project_name, session)
+
+    expected_quota = {
+        "Version": "0.9",
+        "Kind": "MocQuota",
+        "ProjectName": "rbb-test",
+        "Quota": {"BestEffort:pods": 2},        
+    }
+    ret_quota = amt.remove_quota_units(ret_quota["Quota"])
+    expected_quota = amt.remove_quota_units(expected_quota["Quota"])
+    check.is_true(
+        amt.are_all_quota_same_value(amt.diff_moc_quota(ret_quota, ret_quota), 0),
+        "Quotas Don't match, but they should",
+    )
     # cleanup after testing
     check.is_true(
         amt.ms_delete_project(acct_mgt_url, project_name, session) is True,
