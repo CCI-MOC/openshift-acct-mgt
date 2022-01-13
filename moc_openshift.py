@@ -608,7 +608,7 @@ class MocOpenShift4x(MocOpenShift):
                 resource_quota_json["spec"]["scopes"].append(scope)
             non_null_quota_count = 0
             for quota_name in quota_item:
-                if quota_item[quota_name] is not None:
+                if quota_item[quota_name]["value"] is not None:
                     non_null_quota_count += 1
                     resource_quota_json["spec"]["hard"][quota_name] = quota_item[
                         quota_name
