@@ -131,7 +131,7 @@ def test_quota(acct_mgt_url, session):
         "Version": "0.9",
         "Kind": "MocQuota",
         "ProjectName": "rbb-test",
-        "Quota": {"BestEffort:pods": 2},        
+        "Quota": {"BestEffort:pods": 2},
     }
     ret_quota = amt.remove_quota_units(ret_quota["Quota"])
     expected_quota = amt.remove_quota_units(expected_quota["Quota"])
