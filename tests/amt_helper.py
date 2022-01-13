@@ -185,6 +185,16 @@ def ms_put_moc_quota(acct_mgt_url, project_name, moc_quota_def, session):
     return False
 
 
+def ms_patch_moc_quota(acct_mgt_url, project_name, moc_quota_def, session):
+    """The replaces the quota for the specific project - works even for the NULL Quota"""
+    resp = session.patch(
+        f"{acct_mgt_url}/projects/{project_name}/quota", data=json.dumps(moc_quota_def)
+    )
+    if resp.status_code in [200, 201]:
+        return True
+    return False
+
+
 def ms_del_moc_quota(acct_mgt_url, project_name, session):
     """
     This deletes all of the quota for the specified project
