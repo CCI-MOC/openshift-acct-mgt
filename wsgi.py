@@ -366,7 +366,7 @@ def put_quota(project):
 @AUTH.login_required
 def patch_quota(project):
     shift = get_openshift()
-    moc_quota = request.json
+    moc_quota = request.get_json(force=True)
     return shift.update_moc_quota(project, moc_quota, False)
 
 

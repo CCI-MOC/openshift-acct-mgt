@@ -382,7 +382,8 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         else:
             if replace is False:
                 existing_quota = self.get_moc_quota_from_resourcequotas(project_name)
-                for quota, value in existing_quota:
+                pprint.pprint(existing_quota)
+                for quota, value in existing_quota.items():
                     quota_def[quota]["value"] = value
             self.logger.info("new_quota")
             self.logger.info(pprint.pformat(new_quota))
