@@ -8,9 +8,13 @@ commonLabels:
 resources:
 - namespace.yaml
 - cluster-role-binding.yaml
-- quotaConfigmap.yaml
 - deployment.yaml
 - image-stream.yaml
 - route.yaml
 - service-account.yaml
 - service.yaml
+
+configMapGenerator:
+  - name: openshift-quota-definition
+    files:
+      - quotas.json
