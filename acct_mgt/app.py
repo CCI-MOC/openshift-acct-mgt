@@ -1,24 +1,32 @@
-"""WSGI application for MOC openshift account management microservice"""
+"""Flask application for MOC openshift account management microservice"""
 
-import logging
 import json
 import os
 from flask import Flask, request, Response
 from flask_httpauth import HTTPBasicAuth
-import moc_openshift
 
-OPENSHIFT_URL = os.environ["OPENSHIFT_URL"]
-ADMIN_USERNAME = os.environ.get("ACCT_MGT_ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.environ["ACCT_MGT_ADMIN_PASSWORD"]
-AUTH_TOKEN = os.environ.get("ACCT_MGT_AUTH_TOKEN")
+from . import defaults
+from . import kubeclient
+from . import moc_openshift
+
+ENVPREFIX = "ACCT_MGT_"
 
 
-def get_openshift(url, token, logger):
-    if token is None:
-        with open("/var/run/secrets/kubernetes.io/serviceaccount/token", "r") as file:
-            token = file.read()
+def env_config():
+    """Get configuration values from environment variables.
 
-    return moc_openshift.MocOpenShift4x(url, token, logger)
+    Look up all environment variables that start with ENVPREFIX (by default
+    "ACCT_MGT_"), strip the prefix, and store them in a dictionary. Return the
+    dictionary to the caller.
+    """
+
+    return {
+        k[len(ENVPREFIX) :]: v for k, v in os.environ.items() if k.startswith(ENVPREFIX)
+    }
+
+
+def get_openshift(client, app):
+    return moc_openshift.MocOpenShift4x(client, app)
 
 
 # pylint: disable=too-many-statements,too-many-locals,redefined-outer-name
@@ -26,15 +34,32 @@ def create_app(**config):
     APP = Flask(__name__)
     AUTH = HTTPBasicAuth()
 
+    APP.config.from_object(defaults)
     APP.config.from_mapping(config)
 
-    shift = get_openshift(OPENSHIFT_URL, AUTH_TOKEN, APP.logger)
+    # Allow unit tests to explicitly disable environment configuration
+    if not APP.config.get("DISABLE_ENV_CONFIG", False):
+        APP.config.from_mapping(env_config())
+
+    CLIENT = kubeclient.Client(
+        baseurl=APP.config.get("OPENSHIFT_URL"),
+        token=APP.config.get("AUTH_TOKEN"),
+        verify=APP.config.get("CA_PATH"),
+    )
+
+    shift = get_openshift(CLIENT, APP)
 
     @AUTH.verify_password
     def verify_password(username, password):
         """Validates a username and password."""
 
-        return username == ADMIN_USERNAME and password == ADMIN_PASSWORD
+        return (
+            APP.config.get("AUTH_DISABLED", "false").lower()
+            in ("true", "t", "yes", "1")
+        ) or (
+            username == APP.config["ADMIN_USERNAME"]
+            and password == APP.config["ADMIN_PASSWORD"]
+        )
 
     @APP.route(
         "/users/<user_name>/projects/<project_name>/roles/<role>", methods=["GET"]
@@ -330,13 +355,3 @@ def create_app(**config):
         return shift.delete_moc_quota(project)
 
     return APP
-
-
-APP = create_app()
-
-if __name__ == "__main__":
-    APP.run()
-else:
-    APP.logger = logging.getLogger("gunicorn.error")
-    # logger level INFO = 20 see (https://docs.python.org/3/library/logging.html#levels)
-    APP.logger.setLevel(20)
