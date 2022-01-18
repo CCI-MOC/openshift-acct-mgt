@@ -2,4 +2,4 @@
 max-line-length=160
 
 [MESSAGES CONTROL]
-disable = missing-function-docstring,fixme,unspecified-encoding
+disable = missing-function-docstring,fixme,unspecified-encoding,invalid-name
