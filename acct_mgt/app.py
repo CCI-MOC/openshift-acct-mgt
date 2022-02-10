@@ -66,7 +66,7 @@ def create_app(**config):
     )
     @AUTH.login_required
     def get_moc_rolebindings(project_name, user_name, role):
-        # role can be one of Admin, Member, Reader
+        # role can be one of admin, edit, view
         if shift.user_rolebinding_exists(user_name, project_name, role):
             return Response(
                 response=json.dumps(
@@ -88,7 +88,7 @@ def create_app(**config):
     )
     @AUTH.login_required
     def create_moc_rolebindings(project_name, user_name, role):
-        # role can be one of Admin, Member, Reader
+        # role can be one of admin, edit, view
         result = shift.update_user_role_project(project_name, user_name, role, "add")
         if result.status_code in (200, 201):
             return Response(
@@ -107,7 +107,7 @@ def create_app(**config):
     )
     @AUTH.login_required
     def delete_moc_rolebindings(project_name, user_name, role):
-        # role can be one of Admin, Member, Reader
+        # role can be one of admin, edit, view
         result = shift.update_user_role_project(project_name, user_name, role, "del")
         if result.status_code in (200, 201):
             return Response(
