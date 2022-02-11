@@ -25,11 +25,11 @@ It implements the following functions:
 
         oc create project <project-name>
 
-    3) Add a user to a project with a given role.  Here the role may be one of 'admin', 'member' or 'reader'.  In OpenShift, these roles are 'admin', 'edit', 'view' respectively.
+    3) Add a user to a project with a given role. In OpenShift, these roles are 'admin', 'edit', 'view' respectively.
 
         a) API call:
 
-            get [cluster url]/users/<user-name>/projects/<project-name>/roles/<admin|member|reader>
+            get [cluster url]/users/<user-name>/projects/<project-name>/roles/<admin|edit|view>
 
         b) Equivalent command line commands:
 
@@ -60,7 +60,7 @@ It implements the following functions:
 
         a) API call:
         
-            delete [cluster url]/users/<user-name>/projects/<project-name>/roles/<admin|member|reader>   
+            delete [cluster url]/users/<user-name>/projects/<project-name>/roles/<admin|edit|view>   
         b) Equivalent command line commands:
     
             oc adm policy -n <project-name> rm-role-from-user <admin|edit|view> <user-name>

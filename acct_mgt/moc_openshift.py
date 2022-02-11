@@ -8,6 +8,8 @@ import time
 
 from flask import Response
 
+OPENSHIFT_ROLES = ["admin", "edit", "view"]
+
 
 class MocOpenShift(metaclass=abc.ABCMeta):
     """API wrapper interface"""
@@ -77,18 +79,10 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         return False
 
     def user_rolebinding_exists(self, user_name, project_name, role):
-        openshift_role = ""
-
-        if role == "admin":
-            openshift_role = "admin"
-        elif role == "member":
-            openshift_role = "edit"
-        elif role == "reader":
-            openshift_role = "view"
-        else:
+        if role not in OPENSHIFT_ROLES:
             return False
 
-        result = self.get_rolebindings(project_name, openshift_role)
+        result = self.get_rolebindings(project_name, role)
         if result.status_code in (200, 201):
             role_binding = result.json()
             self.logger.info(f"rolebinding result:\n{pprint.pformat(role_binding)}")
@@ -102,7 +96,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
     def get_all_moc_rolebindings(self, user, project_name):
         role_bindings = []
-        for role in ["admin", "member", "reader"]:
+        for role in OPENSHIFT_ROLES:
             if self.user_rolebinding_exists(user, project_name, role):
                 role_bindings.append(role)
         if role_bindings:
@@ -140,29 +134,23 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             )
         # add_openshift_role(token,self.get_url(),project_name, role)
 
-        if role == "admin":
-            openshift_role = "admin"
-        elif role == "member":
-            openshift_role = "edit"
-        elif role == "reader":
-            openshift_role = "view"
-        else:
+        if role not in OPENSHIFT_ROLES:
             return Response(
                 response=json.dumps(
                     {
-                        "msg": f"Error: Invalid role, {role} is not one of 'admin', 'member' or 'reader'"
+                        "msg": f"Error: Invalid role, {role} is not one of 'admin', 'edit' or 'view'"
                     }
                 ),
                 status=400,
                 mimetype="application/json",
             )
 
-        result = self.get_rolebindings(project_name, openshift_role)
+        result = self.get_rolebindings(project_name, role)
         if result.status_code not in (200, 201):
             if operation == "add":
                 # try to create the roles for binding
                 self.logger.info("Creating role bindings")
-                result = self.create_rolebindings(project_name, user, openshift_role)
+                result = self.create_rolebindings(project_name, user, role)
                 if result.status_code in (200, 201):
                     return Response(
                         response=json.dumps(
@@ -256,9 +244,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
                 )
 
             # now add or remove the user
-            result = self.update_rolebindings(
-                project_name, openshift_role, role_binding
-            )
+            result = self.update_rolebindings(project_name, role, role_binding)
 
             msg = "unknown message"
             if result.status_code in (200, 201):
