@@ -442,7 +442,7 @@ class MocOpenShift4x(MocOpenShift):
             "metadata": {"name": role, "namespace": project_name},
             "groupNames": None,
             "userNames": [user_name],
-            "roleRef": {"name": role},
+            "roleRef": {"name": role, "kind": "Role"},
         }
         return self.client.post(url, json=payload)
 
