@@ -420,21 +420,25 @@ class MocOpenShift4x(MocOpenShift):
 
     # member functions to associate roles for users on projects
     def get_rolebindings(self, project_name, role):
-        url = f"/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings/{role}"
+        url = f"/apis/rbac.authorization.k8s.io/v1/namespaces/{project_name}/rolebindings/{role}"
         result = self.client.get(url)
         self.logger.warning("get rolebindings: " + result.text)
         return result
 
     def list_rolebindings(self, project_name):
-        url = f"/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings"
+        url = (
+            f"/apis/rbac.authorization.k8s.io/v1/namespaces/{project_name}/rolebindings"
+        )
         result = self.client.get(url)
         return result
 
     def create_rolebindings(self, project_name, user_name, role):
-        url = f"/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings"
+        url = (
+            f"/apis/rbac.authorization.k8s.io/v1/namespaces/{project_name}/rolebindings"
+        )
         payload = {
             "kind": "RoleBinding",
-            "apiVersion": "authorization.openshift.io/v1",
+            "apiVersion": "rbac.authorization.k8s.io/v1",
             "metadata": {"name": role, "namespace": project_name},
             "groupNames": None,
             "userNames": [user_name],
@@ -443,7 +447,7 @@ class MocOpenShift4x(MocOpenShift):
         return self.client.post(url, json=payload)
 
     def update_rolebindings(self, project_name, role, rolebindings_json):
-        url = f"/apis/authorization.openshift.io/v1/namespaces/{project_name}/rolebindings/{role}"
+        url = f"/apis/rbac.authorization.k8s.io/v1/namespaces/{project_name}/rolebindings/{role}"
         # need to eliminate some fields that might be there
         payload = {}
         for key in rolebindings_json:
