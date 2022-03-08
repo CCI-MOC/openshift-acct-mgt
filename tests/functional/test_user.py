@@ -21,15 +21,6 @@ def test_get_user_notfound(session):
     that does not exist"""
 
     res = session.get("/users/does-not-exist")
-    assert res.status_code == 400
-
-
-@pytest.mark.xfail(reason="not supported by service")
-def test_get_user_notfound_404(session):
-    """Test that an attempt to get information about a user that does not
-    exist results in a 404 NOTFOUND response code"""
-
-    res = session.get("/users/does-not-exist")
     assert res.status_code == 404
 
 
