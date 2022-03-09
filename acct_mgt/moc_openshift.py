@@ -198,15 +198,21 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
         if result.status_code in (200, 201):
             role_binding = result.json()
+            users_in_role = [
+                u["name"]
+                for u in role_binding.get("subjects", {})
+                if u["kind"] == "User"
+            ]
+
             if operation == "add":
                 self.logger.debug("role_binding: " + json.dumps(role_binding))
                 self.logger.debug(
-                    "role_binding['userNames']=" + str(role_binding["userNames"])
+                    "role_binding['subjects']=" + str(role_binding["subjects"])
                 )
-                if role_binding["userNames"] is None:
-                    role_binding["userNames"] = [user]
+                if users_in_role is None:
+                    role_binding["subjects"] = [{"user": user, "kind": "User"}]
                 else:
-                    if user in role_binding["userNames"]:
+                    if user in users_in_role:
                         return Response(
                             response=json.dumps(
                                 {
@@ -216,11 +222,10 @@ class MocOpenShift(metaclass=abc.ABCMeta):
                             status=400,
                             mimetype="application/json",
                         )
-                    role_binding["userNames"].append(user)
+
+                    users_in_role.append(user)
             elif operation == "del":
-                if (role_binding["userNames"] is None) or (
-                    user not in role_binding["userNames"]
-                ):
+                if user not in users_in_role:
                     return Response(
                         response=json.dumps(
                             {
@@ -230,7 +235,8 @@ class MocOpenShift(metaclass=abc.ABCMeta):
                         status=400,
                         mimetype="application/json",
                     )
-                role_binding["userNames"].remove(user)
+
+                users_in_role.remove(user)
             else:
                 self.logger.info("Error: unknown update operation")
                 return Response(
@@ -244,6 +250,9 @@ class MocOpenShift(metaclass=abc.ABCMeta):
                 )
 
             # now add or remove the user
+            role_binding["subjects"] = [
+                {"name": name, "kind": "User"} for name in users_in_role
+            ]
             result = self.update_rolebindings(project_name, role, role_binding)
 
             msg = "unknown message"
@@ -450,7 +459,7 @@ class MocOpenShift4x(MocOpenShift):
         # need to eliminate some fields that might be there
         payload = {}
         for key in rolebindings_json:
-            if key in ["kind", "apiVersion", "userNames", "groupNames", "roleRef"]:
+            if key in ["kind", "apiVersion", "subjects", "roleRef"]:
                 payload[key] = rolebindings_json[key]
         payload["metadata"] = {}
         self.logger.debug("payload -> 1: " + json.dumps(payload))
