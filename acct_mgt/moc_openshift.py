@@ -86,12 +86,12 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         if result.status_code in (200, 201):
             role_binding = result.json()
             self.logger.info(f"rolebinding result:\n{pprint.pformat(role_binding)}")
-            if (
-                "userNames" in role_binding.keys()
-                and role_binding["userNames"] is not None
-                and user_name in role_binding["userNames"]
-            ):
-                return True
+            users_in_role = [
+                u["name"]
+                for u in role_binding.get("subjects", {})
+                if u["kind"] == "User"
+            ]
+            return user_name in users_in_role
         return False
 
     def get_all_moc_rolebindings(self, user, project_name):
