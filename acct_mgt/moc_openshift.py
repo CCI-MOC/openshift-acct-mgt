@@ -440,8 +440,7 @@ class MocOpenShift4x(MocOpenShift):
             "kind": "RoleBinding",
             "apiVersion": "rbac.authorization.k8s.io/v1",
             "metadata": {"name": role, "namespace": project_name},
-            "groupNames": None,
-            "userNames": [user_name],
+            "subjects": [{"name": user_name, "kind": "User"}],
             "roleRef": {"name": role, "kind": "Role"},
         }
         return self.client.post(url, json=payload)
