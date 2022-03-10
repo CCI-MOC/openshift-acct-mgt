@@ -1,4 +1,6 @@
 # pylint: disable=missing-module-docstring,redefined-outer-name
+import pytest
+
 from .conftest import oc
 
 
@@ -30,6 +32,7 @@ def test_user_role_add_role_invalid(session, a_project, a_user):
     assert "invalid role" in res.json()["msg"].lower()
 
 
+@pytest.mark.xfail(reason="https://github.com/CCI-MOC/openshift-acct-mgt/pull/73")
 def test_user_role_add_role(session, a_project, a_user):
     """Test that we can successfully grant a role to a user"""
 
