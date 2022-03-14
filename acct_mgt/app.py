@@ -218,7 +218,7 @@ def create_app(**config):
             )
         return Response(
             response=json.dumps({"msg": f"user ({user_name}) does not exist"}),
-            status=400,
+            status=404,
             mimetype="application/json",
         )
 

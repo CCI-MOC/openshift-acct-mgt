@@ -19,7 +19,7 @@ def test_get_moc_user_exists(moc, client):
 def test_get_moc_user_not_exists(moc, client):
     moc.user_exists.return_value = False
     res = client.get("/users/test-user")
-    assert res.status_code == 400
+    assert res.status_code == 404
     moc.user_exists.assert_called_with("test-user")
 
 
