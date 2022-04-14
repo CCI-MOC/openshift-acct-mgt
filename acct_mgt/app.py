@@ -156,12 +156,9 @@ def create_app(**config):
                 mimetype="application/json",
             )
         if not shift.project_exists(project_uuid):
-            if request.json:
-                project_name = request.json.get("displayName", project_uuid)
-                APP.logger.debug("create project json: %s", project_name)
-            else:
-                project_name = project_uuid
-                APP.logger.debug("create project json: None")
+            project_name = (request.get_json(silent=True) or {}).get(
+                "displayName", project_uuid
+            )
 
             result = shift.create_project(project_uuid, project_name, user_name)
             if result.status_code in (200, 201):
