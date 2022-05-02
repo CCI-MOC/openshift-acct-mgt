@@ -32,7 +32,9 @@ def test_create_moc_project_no_display_name(moc, client):
     moc.create_project.return_value = fake_200_response
     res = client.put("/projects/test-project")
     assert res.status_code == 200
-    moc.create_project.assert_called_with("test-project", "test-project", None)
+    moc.create_project.assert_called_with(
+        "test-project", "test-project", None, annotations={}
+    )
 
 
 def test_create_moc_project_with_display_name(moc, client):
@@ -45,7 +47,25 @@ def test_create_moc_project_with_display_name(moc, client):
         content_type="application/json",
     )
     assert res.status_code == 200
-    moc.create_project.assert_called_with("test-project", "Test Project", None)
+    moc.create_project.assert_called_with(
+        "test-project", "Test Project", None, annotations={}
+    )
+
+
+def test_create_moc_project_with_annotations(moc, client):
+    moc.cnvt_project_name.return_value = "test-project"
+    moc.project_exists.return_value = False
+    moc.create_project.return_value = fake_200_response
+    annotations = {"cf_pi": "1"}
+    res = client.put(
+        "/projects/test-project",
+        data=json.dumps({"annotations": annotations}),
+        content_type="application/json",
+    )
+    assert res.status_code == 200
+    moc.create_project.assert_called_with(
+        "test-project", "test-project", None, annotations=annotations
+    )
 
 
 def test_create_moc_project_exists(moc, client):

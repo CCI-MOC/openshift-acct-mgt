@@ -142,6 +142,7 @@ def create_app(**config):
     def create_moc_project(project_uuid, user_name=None):
         # first check the project_name is a valid openshift project name
         suggested_project_name = shift.cnvt_project_name(project_uuid)
+
         if project_uuid != suggested_project_name:
             # future work, handel colisons by suggesting a different valid
             # project name
@@ -156,11 +157,12 @@ def create_app(**config):
                 mimetype="application/json",
             )
         if not shift.project_exists(project_uuid):
-            project_name = (request.get_json(silent=True) or {}).get(
-                "displayName", project_uuid
+            payload = request.get_json(silent=True) or {}
+            project_name = payload.pop("displayName", project_uuid)
+            annotations = payload.pop("annotations", {})
+            result = shift.create_project(
+                project_uuid, project_name, user_name, annotations=annotations
             )
-
-            result = shift.create_project(project_uuid, project_name, user_name)
             if result.status_code in (200, 201):
                 return Response(
                     response=json.dumps({"msg": f"project created ({project_uuid})"}),
