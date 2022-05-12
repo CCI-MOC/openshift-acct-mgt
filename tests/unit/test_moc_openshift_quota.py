@@ -47,82 +47,6 @@ def test_split_quota_name(moc_api):
     assert moc_api.split_quota_name("scope:foo") == ("scope", "foo")
 
 
-@pytest.mark.xfail(reason="raises a KeyError")
-def test_resolve_quotas_invalid(moc_api):
-    """What happens if the quota request doesn't have a Quotas element?"""
-    quotadefs = {
-        ":configmaps": {"base": 2, "coefficient": 1},
-    }
-
-    with mock.patch("builtins.open", mock.mock_open(read_data=json.dumps(quotadefs))):
-        moc_api.resolve_quotas({})
-
-
-@pytest.mark.xfail(reason="returns a quota with a value of None")
-def test_resolve_quotas_no_multiplier(moc_api):
-    """What happens if the quota request doesn't have a QuotaMultiplier element?"""
-    quotadefs = {
-        ":configmaps": {"base": 2, "coefficient": 1},
-    }
-
-    with mock.patch("builtins.open", mock.mock_open(read_data=json.dumps(quotadefs))):
-        quota_def = moc_api.resolve_quotas({"Quota": {}})
-        assert quota_def == {
-            ":configmaps": {"base": 2, "coefficient": 1, "value": 2},
-        }
-
-
-def test_resolve_quotas_valid(moc_api):
-    """What happens if the quota definition is valid?"""
-    base = 2
-    coefficient = 2
-    quotadefs = {
-        ":configmaps": {"base": base, "coefficient": coefficient},
-    }
-
-    with mock.patch("builtins.open", mock.mock_open(read_data=json.dumps(quotadefs))):
-        for mult in [0, 1, 2, 3]:
-            quota_def = moc_api.resolve_quotas({"Quota": {"QuotaMultiplier": mult}})
-            assert quota_def == {
-                ":configmaps": {
-                    "base": base,
-                    "coefficient": coefficient,
-                    "value": (base + coefficient * mult),
-                },
-            }
-
-
-def test_create_shift_quotas(moc_api):
-    quotadefs = {
-        ":configmaps": {"base": 2, "coefficient": 1},
-    }
-
-    moc_api.client.post.return_value = mock.Mock(status_code=200)
-
-    with mock.patch("builtins.open", mock.mock_open(read_data=json.dumps(quotadefs))):
-        quota_def = moc_api.resolve_quotas({"Quota": {"QuotaMultiplier": 2}})
-        res = moc_api.create_shift_quotas("test-project", quota_def)
-        assert res.status_code == 200
-        assert res.data == b"All quota from test-project successfully created"
-        assert moc_api.client.post.call_args_list[0][1]["json"]["spec"] == {
-            "hard": {"configmaps": 4}
-        }
-
-
-def test_create_shift_quotas_failure(moc_api):
-    quotadefs = {
-        ":configmaps": {"base": 2, "coefficient": 1},
-    }
-
-    moc_api.client.post.return_value = mock.Mock(status_code=400)
-
-    with mock.patch("builtins.open", mock.mock_open(read_data=json.dumps(quotadefs))):
-        quota_def = moc_api.resolve_quotas({"Quota": {"QuotaMultiplier": 2}})
-        res = moc_api.create_shift_quotas("test-project", quota_def)
-        assert res.status_code == 400
-        assert b"creation failed" in res.data
-
-
 def test_get_resourcequotas(moc_api):
     moc_api.client.get.return_value = mock.Mock(
         json=lambda: {
@@ -192,7 +116,7 @@ def test_get_moc_quota(moc_api):
         assert res["Quota"] == quotadefs
 
 
-def test_replace_moc_quota(moc_api):
+def test_update_moc_quota(moc_api):
     quotadefs = {
         ":configmaps": {"base": 2, "coefficient": 0},
     }
@@ -206,11 +130,11 @@ def test_replace_moc_quota(moc_api):
     moc_api.get_resourcequotas = mock.Mock(return_value=[])
 
     with mock.patch("builtins.open", mock.mock_open(read_data=json.dumps(quotadefs))):
-        res = moc_api.replace_moc_quota("test-project", quotareq)
+        res = moc_api.update_moc_quota("test-project", quotareq)
         assert res.status_code == 200
 
 
-def test_replace_moc_quota_delete_fails(moc_api):
+def test_update_moc_quota_delete_fails(moc_api):
     quotadefs = {
         ":configmaps": {"base": 2, "coefficient": 0},
     }
@@ -223,11 +147,11 @@ def test_replace_moc_quota_delete_fails(moc_api):
     moc_api.get_resourcequotas = mock.Mock(return_value=[{}])
 
     with mock.patch("builtins.open", mock.mock_open(read_data=json.dumps(quotadefs))):
-        res = moc_api.replace_moc_quota("test-project", quotareq)
+        res = moc_api.update_moc_quota("test-project", quotareq)
         assert res.status_code == 404
 
 
-def test_replace_moc_quota_create_fails(moc_api):
+def test_update_moc_quota_create_fails(moc_api):
     quotadefs = {
         ":configmaps": {"base": 2, "coefficient": 0},
     }
@@ -241,5 +165,5 @@ def test_replace_moc_quota_create_fails(moc_api):
     moc_api.get_resourcequotas = mock.Mock(return_value=[{}])
 
     with mock.patch("builtins.open", mock.mock_open(read_data=json.dumps(quotadefs))):
-        res = moc_api.replace_moc_quota("test-project", quotareq)
+        res = moc_api.update_moc_quota("test-project", quotareq)
         assert res.status_code == 400

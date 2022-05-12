@@ -52,6 +52,59 @@ def test_project_quota_set_quota(session, a_project, multiplier):
     assert data["spec"]["hard"] == expected
 
 
+@pytest.mark.parametrize("limit", ["5", "10", "20"])
+def test_project_quota_patch_granular(session, a_project, limit):
+    """Test that setting a quota with patch replaces only the sent values"""
+
+    expected = {
+        "configmaps": "4",
+        "limits.ephemeral-storage": "10Gi",
+        "requests.ephemeral-storage": "10Gi",
+        "openshift.io/imagestreams": "2",
+        "persistentvolumeclaims": "2",
+        "replicationcontrollers": "2",
+        "requests.storage": "2",
+        "resourcequotas": "5",
+        "secrets": "4",
+        "services": limit,
+        "services.loadbalancers": "2",
+        "services.nodeports": "2",
+    }
+    res = session.put(
+        f"/projects/{a_project}/quota", json={"Quota": {"QuotaMultiplier": 1}}
+    )
+    assert res.status_code == 200
+
+    res = session.patch(
+        f"/projects/{a_project}/quota", json={"Quota": {":services": limit}}
+    )
+    assert res.status_code == 200
+
+    res, data = oc("get", "resourcequota", f"{a_project}-project", namespace=a_project)
+    assert res.returncode == 0
+    assert data["spec"]["hard"] == expected
+
+
+@pytest.mark.parametrize("limit", ["5", "10", "20"])
+def test_project_quota_put_granular(session, a_project, limit):
+    """Test that setting a quota with a put removes all other values"""
+
+    expected = {
+        "resourcequotas": "100",
+        "services": limit,
+    }
+
+    res = session.put(
+        f"/projects/{a_project}/quota",
+        json={"Quota": {":resourcequotas": "100", ":services": limit}},
+    )
+    assert res.status_code == 200
+
+    res, data = oc("get", "resourcequota", f"{a_project}-project", namespace=a_project)
+    assert res.returncode == 0
+    assert data["spec"]["hard"] == expected
+
+
 def test_project_quota_violate_quota(session, a_project):
     """Test that a quota successfully prevents us from creating too many
     ConfigMaps

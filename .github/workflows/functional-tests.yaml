@@ -49,22 +49,6 @@ jobs:
 
           curl -u admin:pass https://onboarding-onboarding.cluster.local/users/test -k
 
-          # Having issues with the route never working at first,
-          # but recreating the container fixes it
-          sudo docker stop microshift
-          sudo docker run -d --rm --name microshift --privileged \
-            --network host \
-            -v microshift-data:/var/lib \
-            quay.io/microshift/microshift-aio:latest
-
-          sleep 30
-
-          oc wait -n onboarding --for=condition=available --timeout=800s deployment/onboarding
-
-          sleep 90
-
-          curl -u admin:pass https://onboarding-onboarding.cluster.local/users/test -k
-
       - name: Install dependencies
         run: |
           pip install -r requirements.txt

@@ -283,8 +283,10 @@ class MocOpenShift(metaclass=abc.ABCMeta):
             mimetype="application/json",
         )
 
-    def resolve_quotas(self, new_quota):
+    def update_moc_quota(self, project_name, new_quota, patch=False):
+        """This will update resourcequota objects in a project and create new ones based on the new_quota specification"""
         quota_def = self.get_quota_definitions()
+
         if "QuotaMultiplier" in new_quota["Quota"]:
             quota_multiplier = new_quota["Quota"]["QuotaMultiplier"]
             for quota in quota_def:
@@ -296,17 +298,18 @@ class MocOpenShift(metaclass=abc.ABCMeta):
                     quota_def[quota]["value"] = (
                         str(quota_def[quota]["value"]) + quota_def[quota]["units"]
                     )
+        else:
+            if patch:
+                existing_quota = self.get_moc_quota_from_resourcequotas(project_name)
+                for quota, value in existing_quota.items():
+                    quota_def[quota]["value"] = value
 
-        # RBB: flesh out
-        # else:
-        #
-        # RBB  need to overwrite the value in the quotadef with the ones from the new_quota
+            for quota, value in new_quota["Quota"].items():
+                quota_def[quota]["value"] = value
 
-        return quota_def
-
-    def replace_moc_quota(self, project_name, new_quota):
-        """This will delete all resourcequota objects in a project and create new ones based on the new_quota specification"""
-        quota_def = self.resolve_quotas(new_quota)
+            self.logger.info(
+                f"New Quota for project {project_name}: {pprint.pformat(new_quota)}"
+            )
 
         delete_resp = self.delete_moc_quota(project_name)
         if delete_resp.status_code not in [200, 201]:
@@ -323,7 +326,7 @@ class MocOpenShift(metaclass=abc.ABCMeta):
                 mimetype="application/json",
             )
         return Response(
-            response="MOC Quotas Replaced",
+            response="MOC Quotas Updated",
             status=200,
             mimetype="application/json",
         )
@@ -335,13 +338,15 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         for k in quota:
             quota[k]["value"] = None
 
-        # RBB Consider setting the project level resourcequotas to a minimum of 5 (min for how this works)
-        # RBB Get the quotas from openshift ResourceQuotas
-        # RBB url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-        # RBB resource_quotas=json.loads(self.get_request(url,True).json())
-        # RBB Iterate through the resource quota objects adding value into the quotas
-
         return quota
+
+    @abc.abstractmethod
+    def get_resourcequota_details(self, project_name) -> dict:
+        pass
+
+    @abc.abstractmethod
+    def get_moc_quota_from_resourcequotas(self, project_name) -> dict:
+        pass
 
 
 class MocOpenShift4x(MocOpenShift):
@@ -475,6 +480,10 @@ class MocOpenShift4x(MocOpenShift):
         for quota_name in quota_def:
             quota[quota_name] = quota_def[quota_name]["value"]
 
+        quota_from_project = self.get_moc_quota_from_resourcequotas(project_name)
+        for quota_name, quota_value in quota_from_project.items():
+            quota[quota_name] = quota_value
+
         quota_object = {
             "Version": "0.9",
             "Kind": "MocQuota",
@@ -522,7 +531,7 @@ class MocOpenShift4x(MocOpenShift):
                 resource_quota_json["spec"]["scopes"] = [scope]
             non_null_quota_count = 0
             for quota_name in quota_item:
-                if quota_item[quota_name] is not None:
+                if quota_item[quota_name]["value"] is not None:
                     non_null_quota_count += 1
                     resource_quota_json["spec"]["hard"][quota_name] = quota_item[
                         quota_name
@@ -537,6 +546,9 @@ class MocOpenShift4x(MocOpenShift):
                 else:
                     if resp.status_code > quota_create_status_code:
                         quota_create_status_code = resp.status_code
+                    self.logger.error(
+                        f"Quota creation for {project_name} with error: {str(resp.json())}"
+                    )
                     quota_create_msg = f"{quota_create_msg} Quota {project_name}/{quota_name} creation failed"
             # if the 5 calls were successful, we can be less verbose
             if quota_create_status_code in [200, 201]:
@@ -586,3 +598,42 @@ class MocOpenShift4x(MocOpenShift):
             status=delete_status_code,
             mimetype="application/json",
         )
+
+    def get_moc_quota_from_resourcequotas(self, project_name) -> dict:
+        """This returns a dictionary suitable for merging in with the specification from Adjutant/ColdFront"""
+        rq_data = self.get_resourcequota_details(project_name)
+        # url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
+        # rq_data = self.get_request(url, True)
+        moc_quota = {}
+        for rq_name, rq_spec in rq_data.items():
+            self.logger.info(f"processing resourcequota: {project_name}:{rq_name}")
+            scope_list = ["Project"]
+            if "scopes" in rq_spec:
+                scope_list = rq_spec["scopes"]
+            if "hard" in rq_spec:
+                for quota_name, quota_value in rq_spec["hard"].items():
+                    for scope_item in scope_list:
+                        if scope_item == "Project":
+                            moc_quota_name = f":{quota_name}"
+                        else:
+                            moc_quota_name = f"{scope_item}:{quota_name}"
+                        # Here we are just choosing an existing quota
+                        # In the case of our service, there will be no conflicting
+                        # quotas as it is setup by default.
+                        if moc_quota_name not in moc_quota:
+                            moc_quota[moc_quota_name] = quota_value
+        self.logger.info("get moc_quota_from_resourceQuotas")
+        self.logger.info(pprint.pformat(moc_quota))
+        return moc_quota
+
+    def get_resourcequota_details(self, project_name) -> dict:
+        """Returns a list of resourcequota names in the spcified project"""
+        url = f"/api/v1/namespaces/{project_name}/resourcequotas"
+        rq_data = self.client.get(url).json()
+        self.logger.info(f"get_resourcequota_details: {pprint.pformat(rq_data)}")
+
+        rq_dict = {}
+        if rq_data["kind"] == "ResourceQuotaList":
+            for rq_info in rq_data["items"]:
+                rq_dict[rq_info["metadata"]["name"]] = rq_info["spec"]
+        return rq_dict
