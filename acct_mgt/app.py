@@ -344,7 +344,13 @@ def create_app(**config):
     @AUTH.login_required
     def put_quota(project):
         moc_quota = request.get_json(force=True)
-        return shift.replace_moc_quota(project, moc_quota)
+        return shift.update_moc_quota(project, moc_quota, patch=False)
+
+    @APP.route("/projects/<project>/quota", methods=["PATCH"])
+    @AUTH.login_required
+    def patch_quota(project):
+        moc_quota = request.get_json(force=True)
+        return shift.update_moc_quota(project, moc_quota, patch=True)
 
     @APP.route("/projects/<project>/quota", methods=["DELETE"])
     @AUTH.login_required
