@@ -28,11 +28,11 @@ def test_project_quota_patch_granular(session, a_project, limit):
     """Test that setting a quota with patch replaces only the sent values"""
 
     expected = {
-        "requests.cpu": "400m",
+        "requests.cpu": f"{limit}m",
     }
 
     res = session.patch(
-        f"/projects/{a_project}/quota", json={"Quota": {":requests.cpu": "400m"}}
+        f"/projects/{a_project}/quota", json={"Quota": {":requests.cpu": f"{limit}m"}}
     )
     assert res.status_code == 200
 
