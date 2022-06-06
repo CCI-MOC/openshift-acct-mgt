@@ -23,60 +23,16 @@ def test_project_quota_no_quota(session, a_project):
     assert all(data["Quota"][k] is None for k in data["Quota"])
 
 
-@pytest.mark.parametrize("multiplier", [0, 1, 2])
-def test_project_quota_set_quota(session, a_project, multiplier):
-    """Test that setting a quota with different multipliers results in
-    the expected quota values"""
-
-    expected = {
-        "configmaps": "4",
-        "limits.ephemeral-storage": f"{2 + (8 * multiplier)}Gi",
-        "requests.ephemeral-storage": f"{2 + (8 * multiplier)}Gi",
-        "openshift.io/imagestreams": "2",
-        "persistentvolumeclaims": "2",
-        "replicationcontrollers": "2",
-        "requests.storage": "2",
-        "resourcequotas": "5",
-        "secrets": "4",
-        "services": "4",
-        "services.loadbalancers": "2",
-        "services.nodeports": "2",
-    }
-    res = session.put(
-        f"/projects/{a_project}/quota", json={"Quota": {"QuotaMultiplier": multiplier}}
-    )
-    assert res.status_code == 200
-
-    res, data = oc("get", "resourcequota", f"{a_project}-project", namespace=a_project)
-    assert res.returncode == 0
-    assert data["spec"]["hard"] == expected
-
-
 @pytest.mark.parametrize("limit", ["5", "10", "20"])
 def test_project_quota_patch_granular(session, a_project, limit):
     """Test that setting a quota with patch replaces only the sent values"""
 
     expected = {
-        "configmaps": "4",
-        "limits.ephemeral-storage": "10Gi",
-        "requests.ephemeral-storage": "10Gi",
-        "openshift.io/imagestreams": "2",
-        "persistentvolumeclaims": "2",
-        "replicationcontrollers": "2",
-        "requests.storage": "2",
-        "resourcequotas": "5",
-        "secrets": "4",
-        "services": limit,
-        "services.loadbalancers": "2",
-        "services.nodeports": "2",
+        "requests.cpu": "400m",
     }
-    res = session.put(
-        f"/projects/{a_project}/quota", json={"Quota": {"QuotaMultiplier": 1}}
-    )
-    assert res.status_code == 200
 
     res = session.patch(
-        f"/projects/{a_project}/quota", json={"Quota": {":services": limit}}
+        f"/projects/{a_project}/quota", json={"Quota": {":requests.cpu": "400m"}}
     )
     assert res.status_code == 200
 
@@ -128,7 +84,7 @@ def test_project_quota_violate_quota(session, a_project):
         assert res.returncode == 0
 
     res = session.put(
-        f"/projects/{a_project}/quota", json={"Quota": {"QuotaMultiplier": 0}}
+        f"/projects/{a_project}/quota", json={"Quota": {":configmaps": 0}}
     )
     assert res.status_code == 200
 
@@ -145,7 +101,7 @@ def test_project_quota_delete_quota(session, a_project):
     """Test that we are able to delete the quota for a project"""
 
     res = session.put(
-        f"/projects/{a_project}/quota", json={"Quota": {"QuotaMultiplier": 0}}
+        f"/projects/{a_project}/quota", json={"Quota": {":configmaps": 0}}
     )
     assert res.status_code == 200
 
