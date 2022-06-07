@@ -36,6 +36,12 @@ def test_project_quota_patch_granular(session, a_project, limit):
     )
     assert res.status_code == 200
 
+    res = session.get(f"/projects/{a_project}/quota")
+    assert res.status_code == 200
+    assert res.json()["Quota"] == {
+        ":requests.cpu": f"{limit}m",
+    }
+
     res, data = oc("get", "resourcequota", f"{a_project}-project", namespace=a_project)
     assert res.returncode == 0
     assert data["spec"]["hard"] == expected
