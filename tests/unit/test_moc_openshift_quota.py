@@ -122,7 +122,7 @@ def test_update_moc_quota(moc_api):
     }
     quotareq = {
         "Quota": {
-            "QuotaMultiplier": 1,
+            ":configmaps": 1,
         },
     }
     moc_api.client.delete.return_value = mock.Mock(status_code=200)
@@ -140,7 +140,7 @@ def test_update_moc_quota_delete_fails(moc_api):
     }
     quotareq = {
         "Quota": {
-            "QuotaMultiplier": 1,
+            ":configmaps": 1,
         },
     }
     moc_api.client.delete.return_value = mock.Mock(status_code=404)
@@ -157,7 +157,7 @@ def test_update_moc_quota_create_fails(moc_api):
     }
     quotareq = {
         "Quota": {
-            "QuotaMultiplier": 1,
+            ":configmaps": 1,
         },
     }
     moc_api.client.delete.return_value = mock.Mock(status_code=200)

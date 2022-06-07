@@ -287,29 +287,17 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         """This will update resourcequota objects in a project and create new ones based on the new_quota specification"""
         quota_def = self.get_quota_definitions()
 
-        if "QuotaMultiplier" in new_quota["Quota"]:
-            quota_multiplier = new_quota["Quota"]["QuotaMultiplier"]
-            for quota in quota_def:
-                quota_def[quota]["value"] = (
-                    quota_def[quota]["coefficient"] * quota_multiplier
-                    + quota_def[quota]["base"]
-                )
-                if "units" in quota_def[quota]:
-                    quota_def[quota]["value"] = (
-                        str(quota_def[quota]["value"]) + quota_def[quota]["units"]
-                    )
-        else:
-            if patch:
-                existing_quota = self.get_moc_quota_from_resourcequotas(project_name)
-                for quota, value in existing_quota.items():
-                    quota_def[quota]["value"] = value
-
-            for quota, value in new_quota["Quota"].items():
+        if patch:
+            existing_quota = self.get_moc_quota_from_resourcequotas(project_name)
+            for quota, value in existing_quota.items():
                 quota_def[quota]["value"] = value
 
-            self.logger.info(
-                f"New Quota for project {project_name}: {pprint.pformat(new_quota)}"
-            )
+        for quota, value in new_quota["Quota"].items():
+            quota_def[quota]["value"] = value
+
+        self.logger.info(
+            f"New Quota for project {project_name}: {pprint.pformat(new_quota)}"
+        )
 
         delete_resp = self.delete_moc_quota(project_name)
         if delete_resp.status_code not in [200, 201]:
