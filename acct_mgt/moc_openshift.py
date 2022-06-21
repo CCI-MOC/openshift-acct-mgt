@@ -348,19 +348,19 @@ class MocOpenShift4x(MocOpenShift):
             return True
         return False
 
-    def create_project(self, project_name, display_name, user_name):
+    def create_project(self, project_name, display_name, user_name, annotations=None):
         # check project_name
+        if annotations is None:
+            annotations = {}
+        else:
+            annotations = dict(annotations)
         url = "/apis/project.openshift.io/v1/projects/"
+        annotations["openshift.io/display-name"] = display_name
+        annotations["openshift.io/requester"] = user_name
         payload = {
             "kind": "Project",
             "apiVersion": "project.openshift.io/v1",
-            "metadata": {
-                "name": project_name,
-                "annotations": {
-                    "openshift.io/display-name": display_name,
-                    "openshift.io/requester": user_name,
-                },
-            },
+            "metadata": {"name": project_name, "annotations": annotations},
         }
         return self.client.post(url, json=payload)
 

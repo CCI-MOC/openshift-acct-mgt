@@ -1,4 +1,5 @@
 # pylint: disable=missing-module-docstring,redefined-outer-name
+import json
 import time
 
 import pytest
@@ -22,6 +23,32 @@ def delete_project(session, projectname):
         tries -= 1
         assert tries > 0
         time.sleep(1)
+
+
+def test_create_project_with_annotations(session, suffix):
+    """Test that wwe can create a project with json metadata"""
+
+    headers = {"Content-type": "application/json"}
+    annotations = {"cf_project_id": "cf_proj", "cf_pi": "cf_pi_uuid"}
+    payload = {"annotations": annotations, "displayName": "Test Project"}
+    try:
+        session.put(
+            f"/projects/test-project-{suffix}",
+            data=json.dumps(payload),
+            headers=headers,
+        )
+        res, data = oc("get", "project", f"test-project-{suffix}")
+        assert res.returncode == 0
+        assert data["metadata"]["name"] == f"test-project-{suffix}"
+        assert (
+            data["metadata"]["annotations"]["openshift.io/display-name"]
+            == "Test Project"
+        )
+        assert data["metadata"]["annotations"]["cf_project_id"] == "cf_proj"
+        assert data["metadata"]["annotations"]["cf_pi"] == "cf_pi_uuid"
+
+    finally:
+        session.delete(f"/projects/test-project-{suffix}")
 
 
 def test_create_project_invalid(session):
