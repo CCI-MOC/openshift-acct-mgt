@@ -463,14 +463,12 @@ class MocOpenShift4x(MocOpenShift):
         return self.client.put(url, json=payload)
 
     def get_moc_quota(self, project_name):
-        quota_def = self.get_quota_definitions()
-        quota = {}
-        for quota_name in quota_def:
-            quota[quota_name] = quota_def[quota_name]["value"]
-
         quota_from_project = self.get_moc_quota_from_resourcequotas(project_name)
+
+        quota = {}
         for quota_name, quota_value in quota_from_project.items():
-            quota[quota_name] = quota_value
+            if quota_value:
+                quota[quota_name] = quota_value
 
         quota_object = {
             "Version": "0.9",
