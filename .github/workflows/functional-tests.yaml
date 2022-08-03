@@ -27,6 +27,4 @@ jobs:
 
       - name: Run functional tests
         run: |
-          pytest tests/functional -v --cov=acct_mgt --cov-report=term \
-            --admin-user admin --admin-password pass \
-            --api-endpoint https://onboarding-onboarding.cluster.local
+          ./ci/run_functional_tests.sh
