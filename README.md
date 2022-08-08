@@ -1,7 +1,14 @@
-This is a simple microserver that implements a REST API to manage users and projects on the MOC's
-OpenShift clusters.
+# openshift-acct-mgt
 
-It implements the following functions:
+Simple microserver that implements a REST API to manage users, projects,
+project ResourceQuotas, and role assignments on OpenShift 4.X clusters.
+
+The created users are assigned an identity and an identity mapping.
+
+The endpoint is protected using HTTP Basic Auth. 
+
+
+## API Description
 
     1) Create a user.
 
@@ -12,8 +19,8 @@ It implements the following functions:
         b) Equivalent command line commands:
 
             oc create user <user-name>
-            oc create identity sso_auth:<user-name>
-            oc useridentitymapping sso_auth:<user-name> <user-name>
+            oc create identity <idp>:<user-name>
+            oc useridentitymapping <idp>:<user-name> <user-name>
     
     2) Create a project.
 
@@ -60,41 +67,85 @@ It implements the following functions:
 
         a) API call:
         
-            delete [cluster url]/users/<user-name>/projects/<project-name>/roles/<admin|edit|view>   
+            delete [cluster url]/users/<user-name>/projects/<project-name>/roles/<admin|edit|view>
+
         b) Equivalent command line commands:
     
             oc adm policy -n <project-name> rm-role-from-user <admin|edit|view> <user-name>
 
-How to test:
-    1.1) testing with minishift
-    1.1.1) start minishift with the following commands
+## Configuration Options
+The following configuration options are accepted
 
-minishift start
-eval $(minishift docker-env
-oc login -u system:admin
-oc adm policy add-cluster-role-to-user cluster-admin developer"
-oc login -u developer
-docker login -u developer -p developer 172.30.1.1:5000
+* **ACCT_MGT_ADMIN_USERNAME**
+  * **Description**: Expected username through HTTP Basic Auth when receiving API requests.
+  * **Required**: No
+  * **Default**: admin
+* **ACCT_MGT_ADMIN_PASSWORD**
+  * **Description**: Expected password through HTTP Basic Auth when receiving API requests.
+  * **Required**: Yes
+* **ACCT_MGT_IDENTITY_PROVIDER**
+  * **Description**: Identity provider to create the UserIdentityMapping. As configured on OpenShift.
+  * **Required**: Yes
+* **ACCT_MGT_AUTH_TOKEN**
+  * **Description**: Authentication token for the OpenShift cluster. Only required when not running directly on the cluster.
+  * **Required**: No
+* **ACCT_MGT_OPENSHIFT_URL**
+  * **Description**: URL of the OpenShift API. Only required when not running directly on the cluster.
+  * **Required**: No
+* **ACCT_MGT_QUOTA_DEF_FILE**
+  * **Description**: Path to the JSON file containing the quota definition. See example in `k8s/base/quotas/json`.
+  * **Required**: No (The file is required)
+  * **Default**: quotas.json
 
-## Running the unit tests
+## Build
+The recommended method to build and test changes is using Microshift.
+Running `./ci/setup.sh` is going to deploy a Microshift container
+and build and deploy the application using the k8s manifests on
+`k8s`.
 
-Before running the unit tests, make sure you have installed all the
-test dependencies defined in `test-requirements.txt`.
-
-To run the unit tests and produce a coverage report:
-
+```bash
+./ci/setup.sh
 ```
-pytest tests/unit
+
+## Running Tests
+To run the tests (both functional tests and unit tests), make sure to have an
+environment with the necessary dependencies installed.
+
+The recommended solution is to create a new virtual environment:
+
+```shell
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install -r requirements.txt -r test-requirements.txt
 ```
 
-This will place a coverage report in `htmlcov/index.html`.
+### Running Functional Tests
+Functional tests require a working OpenShift cluster. We do not recommend
+running them on a production cluster as they do not perform cleanup.
+
+If you have followed the steps in the Build section, running functional
+tests is as easy as running the following commands. 
+
+```bash
+./ci/run_functional_tests.sh
+```
+
+### Running Unit tests
+To run the unit tests and produce a coverage report (found in `htmlcov/index.html`):
+
+```shell
+pytest tests/unit -v --cov=acct_mgt --cov-report=term
+```
 
 ## Running the service locally
+
+It is possible to run the application outside an OpenShift cluster.
 
 You will need to make sure you are authenticated to OpenShift (when
 run locally, we use `oc whoami -t` to get an authentication token).
 
-You will need to set the following environment variables:
+The following environment variables need to be set:
 
 ```
 OPENSHIFT_URL=$(oc whoami --show-server)
@@ -102,7 +153,7 @@ ACCT_MGT_IDENTITY_PROVIDER=developer
 ACCT_MGT_ADMIN_PASSWORD=pass
 ```
 
-Then start the server up like this:
+Then start the server up with:
 
 ```
 ACCT_MGT_AUTH_TOKEN=$(oc whoami -t) \
