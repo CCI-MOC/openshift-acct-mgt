@@ -443,7 +443,7 @@ class MocOpenShift4x(MocOpenShift):
             "apiVersion": "rbac.authorization.k8s.io/v1",
             "metadata": {"name": role, "namespace": project_name},
             "subjects": [{"name": user_name, "kind": "User"}],
-            "roleRef": {"name": role, "kind": "Role"},
+            "roleRef": {"name": role, "kind": "ClusterRole"},
         }
         return self.client.post(url, json=payload)
 
