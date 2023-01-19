@@ -291,9 +291,7 @@ def create_app(**config):
     @APP.route("/users/<user_name>", methods=["DELETE"])
     @AUTH.login_required
     def delete_moc_user(user_name):
-        user_does_not_exist = 0
-        # use case if User exists then delete
-        if shift.user_exists(user_name):
+        if user_exists := shift.user_exists(user_name):
             result = shift.delete_user(user_name)
             if result.status_code not in (200, 201):
                 return Response(
@@ -303,25 +301,19 @@ def create_app(**config):
                     status=400,
                     mimetype="application/json",
                 )
-        else:
-            user_does_not_exist = 0x01
 
-        id_user = user_name
-
-        if shift.identity_exists(id_user):
-            result = shift.delete_identity(id_user)
+        if identity_exists := shift.identity_exists(user_name):
+            result = shift.delete_identity(user_name)
             if result.status_code not in (200, 201):
                 return Response(
                     response=json.dumps(
-                        {"msg": f"unable to delete identity for ({id_user})"}
+                        {"msg": f"unable to delete identity for ({user_name})"}
                     ),
                     status=400,
                     mimetype="application/json",
                 )
-        else:
-            user_does_not_exist = user_does_not_exist | 0x02
 
-        if user_does_not_exist == 3:
+        if not (user_exists and identity_exists):
             return Response(
                 response=json.dumps({"msg": f"user does not exist ({user_name})"}),
                 status=200,
