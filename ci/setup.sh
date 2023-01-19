@@ -10,14 +10,14 @@ sudo docker run -d --rm --name microshift --privileged \
     -v microshift-data:/var/lib \
     quay.io/microshift/microshift-aio:latest
 
-sudo docker run -d --name registry --network host registry:2
+sudo docker run -d --rm --name registry --network host registry:2
 
 sleep 30
 
 curl -O https://mirror.openshift.com/pub/openshift-v4/$(uname -m)/clients/ocp/stable/openshift-client-linux.tar.gz
 sudo tar -xf openshift-client-linux.tar.gz -C /usr/local/bin oc kubectl
 
-mkdir ~/.kube
+mkdir -p ~/.kube
 sudo docker cp microshift:/var/lib/microshift/resources/kubeadmin/kubeconfig ~/.kube/config
 oc get all
 
