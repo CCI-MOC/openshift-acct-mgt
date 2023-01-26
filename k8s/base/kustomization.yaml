@@ -15,6 +15,7 @@ resources:
 - service.yaml
 
 configMapGenerator:
-  - name: openshift-quota-definition
+  - name: config-files
     files:
+      - limits.json
       - quotas.json
