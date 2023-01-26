@@ -8,6 +8,8 @@ import time
 
 from flask import Response
 
+from . import exceptions
+
 OPENSHIFT_ROLES = ["admin", "edit", "view"]
 
 
@@ -362,7 +364,10 @@ class MocOpenShift4x(MocOpenShift):
             "apiVersion": "project.openshift.io/v1",
             "metadata": {"name": project_name, "annotations": annotations},
         }
-        return self.client.post(url, json=payload)
+        r = self.client.post(url, json=payload)
+        if r.status_code not in [200, 201]:
+            raise exceptions.ApiException(f"unable to create project ({project_name})")
+        return r
 
     def delete_project(self, project_name):
         # check project_name

@@ -2,12 +2,13 @@
 
 import json
 import os
-from flask import Flask, request, Response
+from flask import Flask, make_response, request, Response
 from flask_httpauth import HTTPBasicAuth
 
 from . import defaults
 from . import kubeclient
 from . import moc_openshift
+from . import exceptions
 
 ENVPREFIX = "ACCT_MGT_"
 
@@ -60,6 +61,11 @@ def create_app(**config):
             username == APP.config["ADMIN_USERNAME"]
             and password == APP.config["ADMIN_PASSWORD"]
         )
+
+    @APP.errorhandler(exceptions.ApiException)
+    def exception_handler(error):
+        msg = error.message if error.visible else "Internal Server Error"
+        return make_response({"msg": msg}, error.status_code)
 
     @APP.route(
         "/users/<user_name>/projects/<project_name>/roles/<role>", methods=["GET"]
@@ -142,45 +148,23 @@ def create_app(**config):
     def create_moc_project(project_uuid, user_name=None):
         # first check the project_name is a valid openshift project name
         suggested_project_name = shift.cnvt_project_name(project_uuid)
-
         if project_uuid != suggested_project_name:
-            # future work, handel colisons by suggesting a different valid
-            # project name
-            return Response(
-                response=json.dumps(
-                    {
-                        "msg": "ERROR: project name must match regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?'",
-                        "suggested name": suggested_project_name,
-                    }
-                ),
-                status=400,
-                mimetype="application/json",
+            raise exceptions.BadRequest(
+                "project name must match regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?'."
+                f" Suggested name: {suggested_project_name}."
             )
-        if not shift.project_exists(project_uuid):
-            payload = request.get_json(silent=True) or {}
-            project_name = payload.pop("displayName", project_uuid)
-            annotations = payload.pop("annotations", {})
-            result = shift.create_project(
-                project_uuid, project_name, user_name, annotations=annotations
-            )
-            if result.status_code in (200, 201):
-                return Response(
-                    response=json.dumps({"msg": f"project created ({project_uuid})"}),
-                    status=200,
-                    mimetype="application/json",
-                )
-            return Response(
-                response=json.dumps(
-                    {"msg": f"unable to create project ({project_uuid})"}
-                ),
-                status=400,
-                mimetype="application/json",
-            )
-        return Response(
-            response=json.dumps({"msg": f"project already exists ({project_uuid})"}),
-            status=400,
-            mimetype="application/json",
+
+        if shift.project_exists(project_uuid):
+            raise exceptions.Conflict("project already exists.")
+
+        payload = request.get_json(silent=True) or {}
+        project_name = payload.pop("displayName", project_uuid)
+        annotations = payload.pop("annotations", {})
+
+        shift.create_project(
+            project_uuid, project_name, user_name, annotations=annotations
         )
+        return {"msg": f"project created ({project_uuid})"}
 
     @APP.route("/projects/<project_uuid>", methods=["DELETE"])
     @AUTH.login_required
