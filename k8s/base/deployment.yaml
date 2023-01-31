@@ -14,7 +14,9 @@ spec:
           - name: OPENSHIFT_URL
             value: https://kubernetes.default.svc
           - name: ACCT_MGT_QUOTA_DEF_FILE
-            value: /app/quota/quotas.json
+            value: /app/config/quotas.json
+          - name: ACCT_MGT_LIMIT_DEF_FILE
+            value: /app/config/limits.json
         envFrom:
           - secretRef:
               name: onboarding-credentials
@@ -27,12 +29,12 @@ spec:
             containerPort: 8080
             protocol: TCP
         volumeMounts:
-          - name: quota-vol
-            mountPath: /app/quota
+          - name: config-vol
+            mountPath: /app/config
             readOnly: true
       volumes:
-        - name: quota-vol
+        - name: config-vol
           configMap:
-            name: openshift-quota-definition
+            name: config-files
       serviceAccountName: onboarding-serviceaccount
       automountServiceAccountToken: true

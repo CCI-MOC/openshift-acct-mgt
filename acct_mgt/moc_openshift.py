@@ -4,9 +4,12 @@ import abc
 import pprint
 import json
 import re
+import sys
 import time
 
 from flask import Response
+
+from . import exceptions
 
 OPENSHIFT_ROLES = ["admin", "edit", "view"]
 
@@ -54,6 +57,11 @@ class MocOpenShift(metaclass=abc.ABCMeta):
         self.logger = app.logger
         self.id_provider = app.config["IDENTITY_PROVIDER"]
         self.quotafile = app.config["QUOTA_DEF_FILE"]
+        self.limitfile = app.config["LIMIT_DEF_FILE"]
+
+        if not self.limitfile:
+            self.logger.error("No default limit file provided.")
+            sys.exit(1)
 
     @staticmethod
     def cnvt_project_name(project_name):
@@ -328,6 +336,10 @@ class MocOpenShift(metaclass=abc.ABCMeta):
 
         return quota
 
+    def get_limit_definitions(self):
+        with open(self.limitfile, "r") as file:
+            return json.load(file)
+
     @abc.abstractmethod
     def get_resourcequota_details(self, project_name) -> dict:
         pass
@@ -362,7 +374,11 @@ class MocOpenShift4x(MocOpenShift):
             "apiVersion": "project.openshift.io/v1",
             "metadata": {"name": project_name, "annotations": annotations},
         }
-        return self.client.post(url, json=payload)
+        r = self.client.post(url, json=payload)
+        if r.status_code not in [200, 201]:
+            raise exceptions.ApiException(f"unable to create project ({project_name})")
+        self.create_limits(project_name)
+        return r
 
     def delete_project(self, project_name):
         # check project_name
@@ -623,3 +639,23 @@ class MocOpenShift4x(MocOpenShift):
             for rq_info in rq_data["items"]:
                 rq_dict[rq_info["metadata"]["name"]] = rq_info["spec"]
         return rq_dict
+
+    def create_limits(self, namespace, limits=None):
+        """
+        namespace: namespace to create LimitRange
+        limits: dictionary of limits to create, or None for default
+        """
+        url = f"/api/v1/namespaces/{namespace}/limitranges"
+
+        payload = {
+            "apiVersion": "v1",
+            "kind": "LimitRange",
+            "metadata": {"name": f"{namespace.lower()}-limits"},
+            "spec": {"limits": limits or self.get_limit_definitions()},
+        }
+        r = self.client.post(url, json=payload)
+        if r.status_code not in [200, 201]:
+            raise exceptions.ApiException(
+                f"Unable to create default limits on project {namespace}."
+            )
+        return r

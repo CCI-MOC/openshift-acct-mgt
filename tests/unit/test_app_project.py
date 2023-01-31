@@ -1,6 +1,7 @@
 # pylint: disable=missing-module-docstring
 import json
 
+from acct_mgt.exceptions import ApiException
 from .conftest import fake_200_response, fake_400_response
 
 
@@ -23,7 +24,7 @@ def test_create_moc_project_bad_name(moc, client):
     res = client.put("/projects/Test%20Project")
     assert res.status_code == 400
     assert "project name must match regex" in res.json["msg"]
-    assert res.json["suggested name"] == "test-project"
+    assert "test-project" in res.json["msg"]
 
 
 def test_create_moc_project_no_display_name(moc, client):
@@ -72,17 +73,17 @@ def test_create_moc_project_exists(moc, client):
     moc.cnvt_project_name.return_value = "test-project"
     moc.project_exists.return_value = True
     res = client.put("/projects/test-project")
-    assert res.status_code == 400
+    assert res.status_code == 409
     assert "project already exists" in res.json["msg"]
 
 
 def test_create_moc_project_fails(moc, client):
     moc.cnvt_project_name.return_value = "test-project"
     moc.project_exists.return_value = False
-    moc.create_project.return_value = fake_400_response
+    moc.create_project.side_effect = ApiException("Error")
     res = client.put("/projects/test-project")
-    assert res.status_code == 400
-    assert "unable to create project" in res.json["msg"]
+    assert res.status_code == 500
+    assert "Error" in res.json["msg"]
 
 
 def test_delete_moc_project_exists(moc, client):

@@ -70,16 +70,6 @@ def test_create_project_no_owner(session, suffix):
         session.delete(f"/projects/test-project-{suffix}")
 
 
-# LKS: Cannot differentiate between "conflict with existing project" and
-# "operation failed for some other reason"
-def test_create_project_exists(session, a_project):
-    """Test that we cannot create a project with a conflicting name"""
-
-    res = session.put(f"/projects/{a_project}/owner/test-owner")
-    assert res.status_code == 400
-
-
-@pytest.mark.xfail(reason="not supported by service")
 def test_create_project_exists_409(session, a_project):
     """Test that creating a project with a conflicting name results in
     a 409 CONFLICT error."""
