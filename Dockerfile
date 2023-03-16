@@ -1,10 +1,10 @@
-FROM python:3.8
+FROM python:3.11
 
 RUN mkdir -p /app
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt 
+RUN pip install -r requirements.txt
 
 # If you are building an image locally, note that this will copy
 # all files from the current directory into the image, including
