@@ -21,12 +21,7 @@ class MocOpenShift4x:
     @staticmethod
     def split_quota_name(moc_quota_name):
         name_array = moc_quota_name.split(":")
-        if len(name_array[0]) == 0:
-            scope = "Project"
-        else:
-            scope = name_array[0]
-        quota_name = name_array[1]
-        return (scope, quota_name)
+        return name_array[0] or "Project", name_array[1]
 
     @staticmethod
     def cnvt_project_name(project_name):
