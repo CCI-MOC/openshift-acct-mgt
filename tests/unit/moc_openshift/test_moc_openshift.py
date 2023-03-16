@@ -39,10 +39,22 @@ def test_moc_openshift_no_quota():
         )
 
 
-def test_cnvt_project_name(moc):
-    assert moc.cnvt_project_name("fake") == "fake"
-    assert moc.cnvt_project_name("  fake fake  ") == "fake-fake"
-    assert moc.cnvt_project_name("Ñaño 1234") == "a-o-1234"
+def test_split_quota_name(moc):
+    assert moc.split_quota_name(":fake") == ("Project", "fake")
+    assert moc.split_quota_name("scope:fake") == ("scope", "fake")
+
+
+@pytest.mark.parametrize(
+    "orig,expected",
+    [
+        ("fake", "fake"),
+        ("  fake fake  ", "fake-fake"),
+        ("This Is My Project!", "this-is-my-project"),
+        ("Ñaño 1234", "a-o-1234"),
+    ],
+)
+def test_cnvt_project_name(moc, orig, expected):
+    assert moc.cnvt_project_name(orig) == expected
 
 
 def test_get_resource_api_cached(moc):
