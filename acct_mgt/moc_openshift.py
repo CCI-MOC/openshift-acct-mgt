@@ -42,6 +42,13 @@ class MocOpenShift4x:
             if subject["kind"] == "User" and subject["name"] == user_name
         ]
 
+    @staticmethod
+    def validate_role(role):
+        if role not in OPENSHIFT_ROLES:
+            raise ValueError(
+                f"Invalid role, {role} is not one of {', '.join(OPENSHIFT_ROLES)}"
+            )
+
     def __init__(self, client, logger, config):
         self.client = client
         self.logger = logger
@@ -75,8 +82,7 @@ class MocOpenShift4x:
         )
 
     def user_rolebinding_exists(self, user_name, project_name, role):
-        if role not in OPENSHIFT_ROLES:
-            return False
+        self.validate_role(role)
 
         try:
             result = self.get_rolebindings(project_name, role)
@@ -89,10 +95,7 @@ class MocOpenShift4x:
         )
 
     def add_user_to_role(self, project_name, user_name, role):
-        if role not in OPENSHIFT_ROLES:
-            raise ValueError(
-                f"Invalid role, {role} is not one of 'admin', 'edit' or 'view'"
-            )
+        self.validate_role(role)
 
         try:
             rolebinding = self.get_rolebindings(project_name, role)
@@ -108,10 +111,7 @@ class MocOpenShift4x:
         }
 
     def remove_user_from_role(self, project_name, user_name, role):
-        if role not in OPENSHIFT_ROLES:
-            raise ValueError(
-                f"Invalid role, {role} is not one of 'admin', 'edit' or 'view'"
-            )
+        self.validate_role(role)
 
         try:
             rolebinding = self.get_rolebindings(project_name, role)
