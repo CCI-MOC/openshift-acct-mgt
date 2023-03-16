@@ -1,9 +1,8 @@
 """Flask application for MOC openshift account management microservice"""
 
-import json
 import os
 
-from flask import Flask, make_response, request, Response
+from flask import Flask, make_response, request
 from flask_httpauth import HTTPBasicAuth
 
 import kubernetes.config
@@ -84,19 +83,11 @@ def create_app(**config):
     def get_moc_rolebindings(project_name, user_name, role):
         # role can be one of admin, edit, view
         if shift.user_rolebinding_exists(user_name, project_name, role):
-            return Response(
-                response=json.dumps(
-                    {"msg": f"user role exists ({project_name},{user_name},{role})"}
-                ),
-                status=200,
-                mimetype="application/json",
-            )
-        return Response(
-            response=json.dumps(
-                {"msg": f"user role does not exist ({project_name},{user_name},{role})"}
-            ),
-            status=404,
-            mimetype="application/json",
+            return {"msg": f"user role exists ({project_name},{user_name},{role})"}
+
+        return make_response(
+            {"msg": f"user role does not exist ({project_name},{user_name},{role})"},
+            404,
         )
 
     @APP.route(
@@ -105,18 +96,7 @@ def create_app(**config):
     @AUTH.login_required
     def create_moc_rolebindings(project_name, user_name, role):
         # role can be one of admin, edit, view
-        result = shift.update_user_role_project(project_name, user_name, role, "add")
-        if result.status_code in (200, 201):
-            return Response(
-                response=result.response,
-                status=200,
-                mimetype="application/json",
-            )
-        return Response(
-            response=result.response,
-            status=400,
-            mimetype="application/json",
-        )
+        return shift.add_user_to_role(project_name, user_name, role)
 
     @APP.route(
         "/users/<user_name>/projects/<project_name>/roles/<role>", methods=["DELETE"]
@@ -124,33 +104,16 @@ def create_app(**config):
     @AUTH.login_required
     def delete_moc_rolebindings(project_name, user_name, role):
         # role can be one of admin, edit, view
-        result = shift.update_user_role_project(project_name, user_name, role, "del")
-        if result.status_code in (200, 201):
-            return Response(
-                response=result.response,
-                status=200,
-                mimetype="application/json",
-            )
-        return Response(
-            response=result.response,
-            status=400,
-            mimetype="application/json",
-        )
+        return shift.remove_user_from_role(project_name, user_name, role)
 
     @APP.route("/projects/<project_name>", methods=["GET"])
     @AUTH.login_required
     def get_moc_project(project_name):
         if shift.project_exists(project_name):
-            return Response(
-                response=json.dumps({"msg": f"project exists ({project_name})"}),
-                status=200,
-                mimetype="application/json",
+            return make_response(
+                {"msg": f"project exists ({project_name})"},
             )
-        return Response(
-            response=json.dumps({"msg": f"project does not exist ({project_name})"}),
-            status=400,
-            mimetype="application/json",
-        )
+        return make_response({"msg": f"project does not exist ({project_name})"}, 400)
 
     @APP.route("/projects/<project_name>", methods=["PUT"])
     @APP.route("/projects/<project_name>/owner/<user_name>", methods=["PUT"])
@@ -182,26 +145,14 @@ def create_app(**config):
         if shift.project_exists(project_name):
             shift.delete_project(project_name)
 
-        return Response(
-            response=json.dumps({"msg": f"project deleted ({project_name})"}),
-            status=200,
-            mimetype="application/json",
-        )
+        return make_response({"msg": f"project deleted ({project_name})"})
 
     @APP.route("/users/<user_name>", methods=["GET"])
     @AUTH.login_required
     def get_moc_user(user_name):
         if shift.user_exists(user_name):
-            return Response(
-                response=json.dumps({"msg": f"user ({user_name}) exists"}),
-                status=200,
-                mimetype="application/json",
-            )
-        return Response(
-            response=json.dumps({"msg": f"user ({user_name}) does not exist"}),
-            status=404,
-            mimetype="application/json",
-        )
+            return make_response({"msg": f"user ({user_name}) exists"})
+        return make_response({"msg": f"user ({user_name}) does not exist"}, 404)
 
     @APP.route("/users/<user_name>", methods=["PUT"])
     @AUTH.login_required
@@ -240,20 +191,12 @@ def create_app(**config):
         if shift.identity_exists(user_name):
             shift.delete_identity(user_name)
 
-        return Response(
-            response=json.dumps({"msg": f"user deleted ({user_name})"}),
-            status=200,
-            mimetype="application/json",
-        )
+        return make_response({"msg": f"user deleted ({user_name})"})
 
     @APP.route("/projects/<project>/quota", methods=["GET"])
     @AUTH.login_required
     def get_quota(project):
-        return Response(
-            response=json.dumps(shift.get_moc_quota(project)),
-            status=200,
-            mimetype="application/json",
-        )
+        return shift.get_moc_quota(project)
 
     @APP.route("/projects/<project>/quota", methods=["PUT", "POST"])
     @AUTH.login_required

@@ -6,8 +6,6 @@ import time
 
 import kubernetes.dynamic.exceptions as kexc
 
-from flask import Response
-
 OPENSHIFT_ROLES = ["admin", "edit", "view"]
 
 API_PROJECT = "project.openshift.io/v1"
@@ -35,6 +33,14 @@ class MocOpenShift4x:
         suggested_project_name = re.sub("[^A-Za-z0-9]+$", "", suggested_project_name)
         suggested_project_name = re.sub("[^A-Za-z0-9-]+", "-", suggested_project_name)
         return suggested_project_name
+
+    @staticmethod
+    def user_in_rolebinding(user_name, rolebinding):
+        return [
+            subject
+            for subject in rolebinding["subjects"]
+            if subject["kind"] == "User" and subject["name"] == user_name
+        ]
 
     def __init__(self, client, logger, config):
         self.client = client
@@ -82,89 +88,48 @@ class MocOpenShift4x:
             for subject in result["subjects"]
         )
 
-    def update_user_role_project(self, project_name, user, role, operation):
+    def add_user_to_role(self, project_name, user_name, role):
         if role not in OPENSHIFT_ROLES:
-            return Response(
-                response=json.dumps(
-                    {
-                        "msg": f"Error: Invalid role, {role} is not one of 'admin', 'edit' or 'view'"
-                    }
-                ),
-                status=400,
-                mimetype="application/json",
+            raise ValueError(
+                f"Invalid role, {role} is not one of 'admin', 'edit' or 'view'"
             )
 
-        if operation == "add":
-            return self.add_user_to_role(project_name, user, role)
-
-        if operation == "del":
-            return self.remove_user_from_role(project_name, user, role)
-
-        return Response(
-            response=json.dumps({"msg": "operation is not in ('add' or 'del')"}),
-            status=400,
-            mimetype="application/json",
-        )
-
-    def add_user_to_role(self, project_name, user_name, role):
         try:
             rolebinding = self.get_rolebindings(project_name, role)
-        except kexc.NotFoundError:
-            rolebinding = {}
 
-        if not rolebinding:
-            rolebinding = self.create_rolebindings(project_name, user_name, role)
-        else:
-            user_in_rolebinding = [
-                subject
-                for subject in rolebinding["subjects"]
-                if subject["kind"] == "User" and subject["name"] == user_name
-            ]
-
-            if not user_in_rolebinding:
+            if not self.user_in_rolebinding(user_name, rolebinding):
                 rolebinding["subjects"].append({"kind": "User", "name": user_name})
                 self.update_rolebindings(project_name, rolebinding)
+        except kexc.NotFoundError:
+            rolebinding = self.create_rolebindings(project_name, user_name, role)
 
-        return Response(
-            response=json.dumps(
-                {
-                    "msg": f"added user {user_name} to role {role} in {project_name}",
-                }
-            ),
-            status=200,
-            mimetype="application/json",
-        )
+        return {
+            "msg": f"added user {user_name} to role {role} in {project_name}",
+        }
 
     def remove_user_from_role(self, project_name, user_name, role):
+        if role not in OPENSHIFT_ROLES:
+            raise ValueError(
+                f"Invalid role, {role} is not one of 'admin', 'edit' or 'view'"
+            )
+
         try:
             rolebinding = self.get_rolebindings(project_name, role)
-        except kexc.NotFoundError:
-            rolebinding = {}
 
-        if rolebinding:
-            user_in_rolebinding = [
-                subject
-                for subject in rolebinding["subjects"]
-                if subject["kind"] == "User" and subject["name"] == user_name
-            ]
-
-            for subject in user_in_rolebinding:
+            for subject in self.user_in_rolebinding(user_name, rolebinding):
                 rolebinding["subjects"].remove(subject)
 
             self.update_rolebindings(project_name, rolebinding)
+        except kexc.NotFoundError:
+            pass
 
-        return Response(
-            response=json.dumps(
-                {
-                    "msg": f"removed user {user_name} from role {role} in {project_name}",
-                }
-            ),
-            status=200,
-            mimetype="application/json",
-        )
+        return {
+            "msg": f"removed user {user_name} from role {role} in {project_name}",
+        }
 
     def update_moc_quota(self, project_name, new_quota, patch=False):
-        """This will update resourcequota objects in a project and create new ones based on the new_quota specification"""
+        """This will update resourcequota objects in a project and create new
+        ones based on the new_quota specification"""
         quota_def = self.get_quota_definitions()
 
         if patch:
@@ -182,11 +147,7 @@ class MocOpenShift4x:
         self.delete_moc_quota(project_name)
         self.create_shift_quotas(project_name, quota_def)
 
-        return Response(
-            response="MOC Quotas Updated",
-            status=200,
-            mimetype="application/json",
-        )
+        return {"msg": "MOC quotas updated"}
 
     def get_quota_definitions(self):
         self.logger.info("reading quotas from %s", self.quotafile)
@@ -401,13 +362,7 @@ class MocOpenShift4x:
                 res = api.create(namespace=project_name, body=resource_quota).to_dict()
                 self.wait_for_quota_to_settle(project_name, res)
 
-        return Response(
-            response=json.dumps(
-                {"msg": f"All quota from {project_name} successfully created"}
-            ),
-            status=200,
-            mimetype="application/json",
-        )
+        return {"msg": f"All quotas for {project_name} successfully created"}
 
     def get_resourcequotas(self, project_name):
         """Returns a list of all of the resourcequota objects"""
@@ -427,13 +382,7 @@ class MocOpenShift4x:
         for resourcequota in resourcequotas:
             self.delete_resourcequota(project_name, resourcequota["metadata"]["name"])
 
-        return Response(
-            response=json.dumps(
-                {"msg": f"All quotas from {project_name} successfully deleted"}
-            ),
-            status=200,
-            mimetype="application/json",
-        )
+        return {"msg": f"All quotas for {project_name} successfully deleted"}
 
     def get_moc_quota_from_resourcequotas(self, project_name):
         """This returns a dictionary suitable for merging in with the
