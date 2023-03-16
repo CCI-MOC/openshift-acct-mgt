@@ -139,7 +139,6 @@ class MocOpenShift4x:
 
         for quota, value in new_quota["Quota"].items():
             quota_def[quota]["value"] = value
-
         self.logger.info(
             f"New Quota for project {project_name}: {json.dumps(new_quota, indent=2)}"
         )
