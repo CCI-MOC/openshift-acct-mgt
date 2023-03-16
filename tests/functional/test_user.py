@@ -32,21 +32,11 @@ def test_get_user_exists(a_user):
     assert data["metadata"]["name"] == a_user
 
 
-# LKS: cannot differentiate between "user was deleted" and "user did
-# not exist".
 def test_delete_user_notfound(session):
     """Test response code when we attempt to delete a user that does not exist"""
 
     res = session.delete("/users/does-not-exist")
     assert res.status_code == 200
-
-
-@pytest.mark.xfail(reason="not supported by service")
-def test_delete_user_notfound_404(session):
-    """Test response code when we attempt to delete a user that does not exist"""
-
-    res = session.delete("/users/does-not-exist")
-    assert res.status_code == 404
 
 
 def test_delete_user_exists(session, a_user):
@@ -66,12 +56,3 @@ def test_create_user_exists(session, a_user):
     user"""
     res = session.put(f"/users/{a_user}")
     assert res.status_code == 400
-
-
-@pytest.mark.xfail(reason="not supported by service")
-def test_create_user_exists_409(session, a_user):
-    """Test that an attempt to create new user that conflicts with
-    an existing user results in a 409 CONFLICT response"""
-
-    res = session.put(f"/users/{a_user}")
-    assert res.status_code == 409

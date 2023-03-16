@@ -18,6 +18,7 @@ class Session(requests.Session):
         super().__init__(*args, **kwargs)
         self.baseurl = baseurl
         self.verify = False
+        self.headers["content-type"] = "application/json"
 
     def request(self, method, url, *args, **kwargs):
         url = urljoin(self.baseurl, url)
@@ -80,7 +81,6 @@ def session_noauth(api_endpoint):
     """An unauthenticated Session"""
 
     s = Session(api_endpoint)
-    s.headers["content-type"] = "application/json"
     return s
 
 
@@ -89,7 +89,6 @@ def session(api_endpoint, admin_user, admin_password):
     """An authenticated Session (if authentication is enabled)"""
 
     s = Session(api_endpoint)
-    s.headers["content-type"] = "application/json"
     if admin_password is not None:
         s.auth = (admin_user, admin_password)
     return s

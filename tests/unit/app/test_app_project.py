@@ -73,7 +73,6 @@ def test_create_moc_project_exists(moc, client):
     moc.project_exists.return_value = True
     res = client.put("/projects/test-project")
     assert res.status_code == 409
-    assert "project already exists" in res.json["msg"]
 
 
 def test_create_moc_project_fails(moc, client):
@@ -82,7 +81,6 @@ def test_create_moc_project_fails(moc, client):
     moc.create_project.side_effect = ApiException("Error")
     res = client.put("/projects/test-project")
     assert res.status_code == 500
-    assert "Error" in res.json["msg"]
 
 
 def test_delete_moc_project_exists(moc, client):

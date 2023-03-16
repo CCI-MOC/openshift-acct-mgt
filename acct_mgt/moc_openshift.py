@@ -365,6 +365,9 @@ class MocOpenShift4x:
 
     def get_resourcequotas(self, project_name):
         """Returns a list of all of the resourcequota objects"""
+        # Raise a NotFound error if the project doesn't exist
+        self.get_project(project_name)
+
         api = self.get_resource_api(API_CORE, "ResourceQuota")
         res = api.get(namespace=project_name).to_dict()
 

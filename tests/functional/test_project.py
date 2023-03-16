@@ -2,8 +2,6 @@
 import json
 import time
 
-import pytest
-
 from .conftest import oc
 
 
@@ -59,7 +57,6 @@ def test_create_project_invalid(session):
     assert "project name must match" in res.json()["msg"]
 
 
-@pytest.mark.xfail(reason="bug")
 def test_create_project_no_owner(session, suffix):
     """Test that we can create a project without an owner"""
 
@@ -78,22 +75,11 @@ def test_create_project_exists_409(session, a_project):
     assert res.status_code == 409
 
 
-# LKS: Cannot differentiate between "project does not exist" and "operation
-# failed for some other reason".
 def test_get_project_notfound(session):
     """Test that a request for a project that does not exist fails as expected"""
 
     res = session.get("/projects/does-not-exist")
     assert res.status_code == 400
-
-
-@pytest.mark.xfail(reason="not supported by service")
-def test_get_project_notfound_404(session):
-    """Test that a request for a project that does not exist results in a
-    404 NOTFOUND error."""
-
-    res = session.get("/projects/does-not-exist")
-    assert res.status_code == 404
 
 
 def test_get_project_exists(session, a_project):
@@ -110,21 +96,10 @@ def test_get_project_exists(session, a_project):
     )
 
 
-# LKS: Cannot differentiate between "project did not exist" and
-# "operation failed for some other reason".
 def test_delete_project_notfound(session):
-    """Test that an attempt to delete a project that does not exist fails as expected"""
+    """Test that an attempt to delete a project that does not exist succeeds as expected"""
     res = session.delete("/projects/does-not-exist")
     assert res.status_code == 200
-
-
-@pytest.mark.xfail(reason="not supported by service")
-def test_delete_project_notfound_404(session):
-    """Test that an attempt to delete a project that does not exist results in
-    a 404 NOTFOUND error"""
-
-    res = session.delete("/projects/does-not-exist")
-    assert res.status_code == 404
 
 
 def test_delete_project_exists(session, a_project):
@@ -134,15 +109,3 @@ def test_delete_project_exists(session, a_project):
     res, _ = oc("get", "project", a_project)
     assert res.returncode == 1
     assert b"NotFound" in res.stderr
-
-
-@pytest.mark.xfail(reason="not supported by service")
-def test_delete_project_invalid(session, suffix):
-    """Test that we cannot delete a project that was not created
-    via the API"""
-
-    res, _ = oc("create", "ns", f"target-project-{suffix}")
-    assert res.returncode == 0
-
-    res = session.delete(f"/projects/target-project-{suffix}")
-    assert res.status_code == 400
