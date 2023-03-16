@@ -77,7 +77,10 @@ def test_delete_moc_quota(fake_get_resourcequotas, moc):
 @mock.patch("acct_mgt.moc_openshift.MocOpenShift4x.get_resourcequotas")
 def test_get_moc_quota_from_resourcequotas(fake_get_resourcequotas, moc):
     fake_get_resourcequotas.return_value = [
-        {"metadata": {"name": "fake-quota"}, "spec": {"hard": {"cpu": "1"}}},
+        {
+            "metadata": {"name": "fake-quota"},
+            "spec": {"hard": {"cpu": "1"}},
+        },
         {
             "metadata": {"name": "fake-quota"},
             "spec": {"hard": {"memory": "1"}, "scopes": ["BestEffort"]},

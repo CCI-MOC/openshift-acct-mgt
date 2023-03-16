@@ -333,8 +333,7 @@ class MocOpenShift4x:
         # separate the quota_spec by quota_scope
         for mangled_quota_name in quota_spec:
             (scope, quota_name) = self.split_quota_name(mangled_quota_name)
-            if scope not in quota_def:
-                quota_def[scope] = {}
+            quota_def.setdefault(scope, {})
             quota_def[scope][quota_name] = quota_spec[mangled_quota_name]
 
         for scope, quota_item in quota_def.items():
@@ -388,25 +387,13 @@ class MocOpenShift4x:
         resourcequotas = self.get_resourcequotas(project_name)
         moc_quota = {}
         for rq in resourcequotas:
-            rq_spec = rq["spec"]
-            self.logger.info(
-                f"processing resourcequota: {project_name}:{rq['metadata']['name']}"
-            )
-            scope_list = ["Project"]
-            if "scopes" in rq_spec:
-                scope_list = rq_spec["scopes"]
-            if "hard" in rq_spec:
-                for quota_name, quota_value in rq_spec["hard"].items():
-                    for scope_item in scope_list:
-                        if scope_item == "Project":
-                            moc_quota_name = f":{quota_name}"
-                        else:
-                            moc_quota_name = f"{scope_item}:{quota_name}"
-                        # Here we are just choosing an existing quota
-                        # In the case of our service, there will be no conflicting
-                        # quotas as it is setup by default.
-                        if moc_quota_name not in moc_quota:
-                            moc_quota[moc_quota_name] = quota_value
+            name, spec = rq["metadata"]["name"], rq["spec"]
+            self.logger.info(f"processing resourcequota: {project_name}:{name}")
+            scope_list = spec.get("scopes", [""])
+            for quota_name, quota_value in spec.get("hard", {}).items():
+                for scope_item in scope_list:
+                    moc_quota_name = f"{scope_item}:{quota_name}"
+                    moc_quota.setdefault(moc_quota_name, quota_value)
         return moc_quota
 
     def create_limits(self, project_name, limits=None):
