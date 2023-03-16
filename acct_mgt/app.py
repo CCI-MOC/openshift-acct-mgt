@@ -7,6 +7,7 @@ from flask_httpauth import HTTPBasicAuth
 
 import kubernetes.config
 import kubernetes.client
+import kubernetes.dynamic.exceptions as kexc
 from openshift.dynamic import DynamicClient
 
 from . import defaults
@@ -72,9 +73,23 @@ def create_app(**config):
         )
 
     @APP.errorhandler(exceptions.ApiException)
-    def exception_handler(error):
+    def handle_acct_mgt_errors(error):
         msg = error.message if error.visible else "Internal Server Error"
         return make_response({"msg": msg}, error.status_code)
+
+    @APP.errorhandler(kexc.DynamicApiError)
+    def handle_openshift_api_errors(error):
+        return make_response(
+            {"msg": f"Unexpected response from OpenShift API: {error.summary()}"},
+            400,
+        )
+
+    @APP.errorhandler(ValueError)
+    def handle_value_errors(error):
+        return make_response(
+            {"msg": f"Invalid value in input: {error}"},
+            400,
+        )
 
     @APP.route(
         "/users/<user_name>/projects/<project_name>/roles/<role>", methods=["GET"]
