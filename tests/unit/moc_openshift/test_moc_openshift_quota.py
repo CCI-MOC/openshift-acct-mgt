@@ -160,7 +160,6 @@ def test_update_moc_quota(
 @mock.patch("acct_mgt.moc_openshift.MocOpenShift4x.delete_moc_quota", mock.Mock())
 @mock.patch("acct_mgt.moc_openshift.MocOpenShift4x.get_resourcequotas")
 @mock.patch("acct_mgt.moc_openshift.MocOpenShift4x.create_shift_quotas")
-@pytest.mark.xfail(reason="bug")
 def test_update_moc_quota_patch(
     fake_create_quotas,
     fake_get_resourcequotas,

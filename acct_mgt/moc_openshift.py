@@ -135,7 +135,7 @@ class MocOpenShift4x:
         if patch:
             existing_quota = self.get_moc_quota_from_resourcequotas(project_name)
             for quota, value in existing_quota.items():
-                quota_def[quota]["value"] = value
+                quota_def.setdefault(quota, {})["value"] = value
 
         for quota, value in new_quota["Quota"].items():
             quota_def[quota]["value"] = value
