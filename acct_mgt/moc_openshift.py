@@ -13,6 +13,7 @@ API_USER = "user.openshift.io/v1"
 API_RBAC = "rbac.authorization.k8s.io/v1"
 API_CORE = "v1"
 
+
 # pylint: disable=too-many-public-methods
 class MocOpenShift4x:
     """API implementation for OpenShift 4.x"""
