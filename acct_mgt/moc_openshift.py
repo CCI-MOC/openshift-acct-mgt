@@ -78,25 +78,6 @@ class MocOpenShift4x:
             return user_name in users_in_role
         return False
 
-    def get_all_moc_rolebindings(self, user, project_name):
-        role_bindings = []
-        for role in OPENSHIFT_ROLES:
-            if self.user_rolebinding_exists(user, project_name, role):
-                role_bindings.append(role)
-        if role_bindings:
-            return Response(
-                response=json.dumps(
-                    {"msg": "role found", "rolebindings": role_bindings}
-                ),
-                status=200,
-                mimetype="application/json",
-            )
-        return Response(
-            response=json.dumps({"msg": "roles not found"}),
-            status=404,
-            mimetype="application/json",
-        )
-
     def update_user_role_project(
         self, project_name, user, role, operation
     ):  # pylint: disable=too-many-return-statements,too-many-branches
