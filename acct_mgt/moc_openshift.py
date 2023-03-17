@@ -82,27 +82,7 @@ class MocOpenShift4x:
             for subject in result["subjects"]
         )
 
-    def update_user_role_project(
-        self, project_name, user, role, operation
-    ):  # pylint: disable=too-many-return-statements,too-many-branches
-        # The REST API 'create rolebindings' doesn't work the way that 'oc create rolebindings'
-        # with the REST API,
-        #     GET can be used to get the specific role from the project (or all roles)
-        #     POST the role is bound to the project (and users)
-        #     PUT is used to modify the rolebindings (add users or groups to the role)
-        #     DELETE is used to remove the role (and all users) from the project
-        #
-        # Don't do anything incorrectly as the error messages are generic enough to be meaningless
-        #
-        # First check to see if there is a rolebinding on the project
-        if operation not in ["add", "del"]:
-            return Response(
-                response=json.dumps({"msg": "operation is not in ('add' or 'del')"}),
-                status=400,
-                mimetype="application/json",
-            )
-        # add_openshift_role(token,self.get_url(),project_name, role)
-
+    def update_user_role_project(self, project_name, user, role, operation):
         if role not in OPENSHIFT_ROLES:
             return Response(
                 response=json.dumps(
@@ -114,141 +94,72 @@ class MocOpenShift4x:
                 mimetype="application/json",
             )
 
-        result = self.get_rolebindings(project_name, role)
-        if result.status_code not in (200, 201):
-            if operation == "add":
-                # try to create the roles for binding
-                self.logger.info("Creating role bindings")
-                result = self.create_rolebindings(project_name, user, role)
-                if result.status_code in (200, 201):
-                    return Response(
-                        response=json.dumps(
-                            {
-                                "msg": f"rolebinding created ({user},{project_name},{role})"
-                            }
-                        ),
-                        status=200,
-                        mimetype="application/json",
-                    )
-                return Response(
-                    response=json.dumps(
-                        {
-                            "msg": f"unable to create rolebinding ({user},{project_name},{role}){result.text}"
-                        }
-                    ),
-                    status=400,
-                    mimetype="application/json",
-                )
+        if operation == "add":
+            return self.add_user_to_role(project_name, user, role)
 
-            if operation == "del":
-                # this is done for purely defensive reasons, shouldn't happen due to our current business
-                self.logger.info(
-                    "Warning: Attempt to delete from an newly created project - has the business logic changed"
-                )
-                return Response(
-                    response=json.dumps(
-                        {
-                            "msg": f"unable to delete rolebinding ({user},{project_name},{role})"
-                        }
-                    ),
-                    status=400,
-                    mimetype="application/json",
-                )
+        if operation == "del":
+            return self.remove_user_from_role(project_name, user, role)
 
-            # should never get here, but also done for purely defensive reasons
-            self.logger.info("Error: unknown create operation")
-            return Response(
-                response=json.dumps(
-                    {"msg": f"invalid request ({user},{project_name},{role})"}
-                ),
-                status=400,
-                mimetype="application/json",
-            )
+        return Response(
+            response=json.dumps({"msg": "operation is not in ('add' or 'del')"}),
+            status=400,
+            mimetype="application/json",
+        )
 
-        if result.status_code in (200, 201):
-            role_binding = result.json()
-            users_in_role = [
-                u["name"]
-                for u in role_binding.get("subjects", {})
-                if u["kind"] == "User"
+    def add_user_to_role(self, project_name, user_name, role):
+        try:
+            rolebinding = self.get_rolebindings(project_name, role)
+        except kexc.NotFoundError:
+            rolebinding = {}
+
+        if not rolebinding:
+            rolebinding = self.create_rolebindings(project_name, user_name, role)
+        else:
+            user_in_rolebinding = [
+                subject
+                for subject in rolebinding["subjects"]
+                if subject["kind"] == "User" and subject["name"] == user_name
             ]
 
-            if operation == "add":
-                self.logger.debug("role_binding: " + json.dumps(role_binding))
-                self.logger.debug(
-                    "role_binding['subjects']=" + str(role_binding["subjects"])
-                )
-                if users_in_role is None:
-                    role_binding["subjects"] = [{"user": user, "kind": "User"}]
-                else:
-                    if user in users_in_role:
-                        return Response(
-                            response=json.dumps(
-                                {
-                                    "msg": f"rolebinding already exists - unable to add ({user},{project_name},{role})"
-                                }
-                            ),
-                            status=400,
-                            mimetype="application/json",
-                        )
+            if not user_in_rolebinding:
+                rolebinding["subjects"].append({"kind": "User", "name": user_name})
+                self.update_rolebindings(project_name, rolebinding)
 
-                    users_in_role.append(user)
-            elif operation == "del":
-                if user not in users_in_role:
-                    return Response(
-                        response=json.dumps(
-                            {
-                                "msg": f"rolebinding does not exist - unable to delete ({user},{project_name},{role})"
-                            }
-                        ),
-                        status=400,
-                        mimetype="application/json",
-                    )
-
-                users_in_role.remove(user)
-            else:
-                self.logger.info("Error: unknown update operation")
-                return Response(
-                    response=json.dumps(
-                        {
-                            "msg": f"Invalid request ({user},{project_name},role,{operation})"
-                        }
-                    ),
-                    status=400,
-                    mimetype="application/json",
-                )
-
-            # now add or remove the user
-            role_binding["subjects"] = [
-                {"name": name, "kind": "User"} for name in users_in_role
-            ]
-            result = self.update_rolebindings(project_name, role_binding)
-
-            msg = "unknown message"
-            if result.status_code in (200, 201):
-                if operation == "add":
-                    msg = "Added role to user on project"
-                elif operation == "del":
-                    msg = "removed role from user on project"
-                return Response(
-                    response=json.dumps({"msg": msg}),
-                    status=200,
-                    mimetype="application/json",
-                )
-            if operation == "add":
-                msg = "unable to add role to user on project"
-            elif operation == "del":
-                msg = "unable to remove role from user on project"
-            return Response(
-                response=json.dumps({"msg": msg}),
-                status=400,
-                mimetype="application/json",
-            )
         return Response(
             response=json.dumps(
-                {"msg": f"rolebinding already exists ({user},{project_name},{role})"}
+                {
+                    "msg": f"added user {user_name} to role {role} in {project_name}",
+                }
             ),
-            status=400,
+            status=200,
+            mimetype="application/json",
+        )
+
+    def remove_user_from_role(self, project_name, user_name, role):
+        try:
+            rolebinding = self.get_rolebindings(project_name, role)
+        except kexc.NotFoundError:
+            rolebinding = {}
+
+        if rolebinding:
+            user_in_rolebinding = [
+                subject
+                for subject in rolebinding["subjects"]
+                if subject["kind"] == "User" and subject["name"] == user_name
+            ]
+
+            for subject in user_in_rolebinding:
+                rolebinding["subjects"].remove(subject)
+
+            self.update_rolebindings(project_name, rolebinding)
+
+        return Response(
+            response=json.dumps(
+                {
+                    "msg": f"removed user {user_name} from role {role} in {project_name}",
+                }
+            ),
+            status=200,
             mimetype="application/json",
         )
 
