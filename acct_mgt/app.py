@@ -127,65 +127,65 @@ def create_app(**config):
             mimetype="application/json",
         )
 
-    @APP.route("/projects/<project_uuid>", methods=["GET"])
+    @APP.route("/projects/<project_name>", methods=["GET"])
     @AUTH.login_required
-    def get_moc_project(project_uuid):
-        if shift.project_exists(project_uuid):
+    def get_moc_project(project_name):
+        if shift.project_exists(project_name):
             return Response(
-                response=json.dumps({"msg": f"project exists ({project_uuid})"}),
+                response=json.dumps({"msg": f"project exists ({project_name})"}),
                 status=200,
                 mimetype="application/json",
             )
         return Response(
-            response=json.dumps({"msg": f"project does not exist ({project_uuid})"}),
+            response=json.dumps({"msg": f"project does not exist ({project_name})"}),
             status=400,
             mimetype="application/json",
         )
 
-    @APP.route("/projects/<project_uuid>", methods=["PUT"])
-    @APP.route("/projects/<project_uuid>/owner/<user_name>", methods=["PUT"])
+    @APP.route("/projects/<project_name>", methods=["PUT"])
+    @APP.route("/projects/<project_name>/owner/<user_name>", methods=["PUT"])
     @AUTH.login_required
-    def create_moc_project(project_uuid, user_name=None):
+    def create_moc_project(project_name, user_name=None):
         # first check the project_name is a valid openshift project name
-        suggested_project_name = shift.cnvt_project_name(project_uuid)
-        if project_uuid != suggested_project_name:
+        suggested_project_name = shift.cnvt_project_name(project_name)
+        if project_name != suggested_project_name:
             raise exceptions.BadRequest(
                 "project name must match regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?'."
                 f" Suggested name: {suggested_project_name}."
             )
 
-        if shift.project_exists(project_uuid):
+        if shift.project_exists(project_name):
             raise exceptions.Conflict("project already exists.")
 
         payload = request.get_json(silent=True) or {}
-        project_name = payload.pop("displayName", project_uuid)
+        display_name = payload.pop("displayName", project_name)
         annotations = payload.pop("annotations", {})
 
         shift.create_project(
-            project_uuid, project_name, user_name, annotations=annotations
+            project_name, display_name, user_name, annotations=annotations
         )
-        return {"msg": f"project created ({project_uuid})"}
+        return {"msg": f"project created ({project_name})"}
 
-    @APP.route("/projects/<project_uuid>", methods=["DELETE"])
+    @APP.route("/projects/<project_name>", methods=["DELETE"])
     @AUTH.login_required
-    def delete_moc_project(project_uuid):
-        if shift.project_exists(project_uuid):
-            result = shift.delete_project(project_uuid)
+    def delete_moc_project(project_name):
+        if shift.project_exists(project_name):
+            result = shift.delete_project(project_name)
             if result.status_code in (200, 201):
                 return Response(
-                    response=json.dumps({"msg": f"project deleted ({project_uuid})"}),
+                    response=json.dumps({"msg": f"project deleted ({project_name})"}),
                     status=200,
                     mimetype="application/json",
                 )
             return Response(
                 response=json.dumps(
-                    {"msg": f"unable to delete project ({project_uuid})"}
+                    {"msg": f"unable to delete project ({project_name})"}
                 ),
                 status=400,
                 mimetype="application/json",
             )
         return Response(
-            response=json.dumps({"msg": f"project does not exist ({project_uuid})"}),
+            response=json.dumps({"msg": f"project does not exist ({project_name})"}),
             status=400,
             mimetype="application/json",
         )
