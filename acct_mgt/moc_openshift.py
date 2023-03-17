@@ -1,6 +1,5 @@
 """API wrapper for interacting with OpenShift authorization"""
 # pylint: disable=too-many-public-methods
-import pprint
 import json
 import re
 import sys
@@ -68,7 +67,9 @@ class MocOpenShift4x:
         result = self.get_rolebindings(project_name, role)
         if result.status_code in (200, 201):
             role_binding = result.json()
-            self.logger.info(f"rolebinding result:\n{pprint.pformat(role_binding)}")
+            self.logger.info(
+                f"rolebinding result:\n{json.dumps(role_binding, indent=2)}"
+            )
             users_in_role = [
                 u["name"]
                 for u in role_binding.get("subjects", {})
@@ -279,7 +280,7 @@ class MocOpenShift4x:
             quota_def[quota]["value"] = value
 
         self.logger.info(
-            f"New Quota for project {project_name}: {pprint.pformat(new_quota)}"
+            f"New Quota for project {project_name}: {json.dumps(new_quota, indent=2)}"
         )
 
         delete_resp = self.delete_moc_quota(project_name)
@@ -528,7 +529,7 @@ class MocOpenShift4x:
         """Returns a dictionary of all of the resourcequota objects"""
         url = f"/api/v1/namespaces/{project_name}/resourcequotas"
         rq_data = self.client.get(url).json()
-        self.logger.info(pprint.pformat(rq_data))
+        self.logger.info(json.dumps(rq_data, indent=2))
         rq_list = []
         for rq_name in rq_data["items"]:
             rq_list.append(rq_name["metadata"]["name"])
@@ -588,14 +589,14 @@ class MocOpenShift4x:
                         if moc_quota_name not in moc_quota:
                             moc_quota[moc_quota_name] = quota_value
         self.logger.info("get moc_quota_from_resourceQuotas")
-        self.logger.info(pprint.pformat(moc_quota))
+        self.logger.info(json.dumps(moc_quota, indent=2))
         return moc_quota
 
     def get_resourcequota_details(self, project_name) -> dict:
         """Returns a list of resourcequota names in the spcified project"""
         url = f"/api/v1/namespaces/{project_name}/resourcequotas"
         rq_data = self.client.get(url).json()
-        self.logger.info(f"get_resourcequota_details: {pprint.pformat(rq_data)}")
+        self.logger.info(f"get_resourcequota_details: {json.dumps(rq_data, indent=2)}")
 
         rq_dict = {}
         if rq_data["kind"] == "ResourceQuotaList":
