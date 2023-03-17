@@ -25,6 +25,13 @@ class MocOpenShift4x:
         quota_name = name_array[1]
         return (scope, quota_name)
 
+    @staticmethod
+    def cnvt_project_name(project_name):
+        suggested_project_name = re.sub("^[^A-Za-z0-9]+", "", project_name)
+        suggested_project_name = re.sub("[^A-Za-z0-9]+$", "", suggested_project_name)
+        suggested_project_name = re.sub("[^A-Za-z0-9-]+", "-", suggested_project_name)
+        return suggested_project_name
+
     def __init__(self, client, app):
         self.client = client
         self.app = app
@@ -36,13 +43,6 @@ class MocOpenShift4x:
         if not self.limitfile:
             self.logger.error("No default limit file provided.")
             sys.exit(1)
-
-    @staticmethod
-    def cnvt_project_name(project_name):
-        suggested_project_name = re.sub("^[^A-Za-z0-9]+", "", project_name)
-        suggested_project_name = re.sub("[^A-Za-z0-9]+$", "", suggested_project_name)
-        suggested_project_name = re.sub("[^A-Za-z0-9-]+", "-", suggested_project_name)
-        return suggested_project_name
 
     def user_exists(self, user_name):
         result = self.get_user(user_name)
