@@ -1,6 +1,5 @@
 """API wrapper for interacting with OpenShift authorization"""
 # pylint: disable=too-many-public-methods
-import abc
 import pprint
 import json
 import re
@@ -14,32 +13,8 @@ from . import exceptions
 OPENSHIFT_ROLES = ["admin", "edit", "view"]
 
 
-class MocOpenShift(metaclass=abc.ABCMeta):
-    """API wrapper interface"""
-
-    @abc.abstractmethod
-    def get_user(self, user_name):
-        return
-
-    @abc.abstractmethod
-    def get_rolebindings(self, project_name, role):
-        return
-
-    @abc.abstractmethod
-    def create_rolebindings(self, project_name, user_name, role):
-        return
-
-    @abc.abstractmethod
-    def update_rolebindings(self, project_name, role, rolebindings_json):
-        return
-
-    @abc.abstractmethod
-    def delete_moc_quota(self, project_name):
-        return
-
-    @abc.abstractmethod
-    def create_shift_quotas(self, project_name, quota_spec):
-        return
+class MocOpenShift4x:
+    """API implementation for OpenShift 4.x"""
 
     @staticmethod
     def split_quota_name(moc_quota_name):
@@ -339,18 +314,6 @@ class MocOpenShift(metaclass=abc.ABCMeta):
     def get_limit_definitions(self):
         with open(self.limitfile, "r") as file:
             return json.load(file)
-
-    @abc.abstractmethod
-    def get_resourcequota_details(self, project_name) -> dict:
-        pass
-
-    @abc.abstractmethod
-    def get_moc_quota_from_resourcequotas(self, project_name) -> dict:
-        pass
-
-
-class MocOpenShift4x(MocOpenShift):
-    """API implementation for OpenShift 4.x"""
 
     # member functions for projects
     def project_exists(self, project_name):
