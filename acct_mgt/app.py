@@ -181,14 +181,10 @@ def create_app(**config):
     def delete_moc_project(project_name):
         if shift.project_exists(project_name):
             shift.delete_project(project_name)
-            return Response(
-                response=json.dumps({"msg": f"project deleted ({project_name})"}),
-                status=200,
-                mimetype="application/json",
-            )
+
         return Response(
-            response=json.dumps({"msg": f"project does not exist ({project_name})"}),
-            status=400,
+            response=json.dumps({"msg": f"project deleted ({project_name})"}),
+            status=200,
             mimetype="application/json",
         )
 

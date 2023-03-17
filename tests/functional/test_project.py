@@ -115,7 +115,7 @@ def test_get_project_exists(session, a_project):
 def test_delete_project_notfound(session):
     """Test that an attempt to delete a project that does not exist fails as expected"""
     res = session.delete("/projects/does-not-exist")
-    assert res.status_code == 400
+    assert res.status_code == 200
 
 
 @pytest.mark.xfail(reason="not supported by service")
