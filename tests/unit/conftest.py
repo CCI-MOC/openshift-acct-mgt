@@ -70,6 +70,9 @@ def moc_api(ocp, app):
     return MocOpenShift4x(
         ocp,
         app,
+        # dummy config to make pylint happy until we
+        # fix the unit tests
+        mock.Mock(),
     )
 
 

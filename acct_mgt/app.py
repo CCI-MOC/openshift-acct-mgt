@@ -2,11 +2,15 @@
 
 import json
 import os
+
 from flask import Flask, make_response, request, Response
 from flask_httpauth import HTTPBasicAuth
 
+import kubernetes.config
+import kubernetes.client
+from openshift.dynamic import DynamicClient
+
 from . import defaults
-from . import kubeclient
 from . import moc_openshift
 from . import exceptions
 
@@ -26,8 +30,19 @@ def env_config():
     }
 
 
-def get_openshift(client, app):
-    return moc_openshift.MocOpenShift4x(client, app)
+def get_dynamic_client(logger):
+    try:
+        k8s_client = kubernetes.config.new_client_from_config()
+        logger.info("using kubeconfig credentials")
+    except kubernetes.config.config_exception.ConfigException:
+        kubernetes.config.load_incluster_config()
+        k8s_client = kubernetes.client.ApiClient()
+        logger.info("using in-cluster credentials")
+    return DynamicClient(k8s_client)
+
+
+def get_openshift(client, logger, config):
+    return moc_openshift.MocOpenShift4x(client, logger, config)
 
 
 # pylint: disable=too-many-statements,too-many-locals,redefined-outer-name
@@ -42,13 +57,8 @@ def create_app(**config):
     if not APP.config.get("DISABLE_ENV_CONFIG", False):
         APP.config.from_mapping(env_config())
 
-    CLIENT = kubeclient.Client(
-        baseurl=APP.config.get("OPENSHIFT_URL"),
-        token=APP.config.get("AUTH_TOKEN"),
-        verify=APP.config.get("CA_PATH"),
-    )
-
-    shift = get_openshift(CLIENT, APP)
+    dyn_client = get_dynamic_client(APP.logger)
+    shift = get_openshift(dyn_client, APP.logger, APP.config)
 
     @AUTH.verify_password
     def verify_password(username, password):
@@ -170,18 +180,10 @@ def create_app(**config):
     @AUTH.login_required
     def delete_moc_project(project_name):
         if shift.project_exists(project_name):
-            result = shift.delete_project(project_name)
-            if result.status_code in (200, 201):
-                return Response(
-                    response=json.dumps({"msg": f"project deleted ({project_name})"}),
-                    status=200,
-                    mimetype="application/json",
-                )
+            shift.delete_project(project_name)
             return Response(
-                response=json.dumps(
-                    {"msg": f"unable to delete project ({project_name})"}
-                ),
-                status=400,
+                response=json.dumps({"msg": f"project deleted ({project_name})"}),
+                status=200,
                 mimetype="application/json",
             )
         return Response(
@@ -215,94 +217,33 @@ def create_app(**config):
         full_name = user_name
         id_user = user_name  # until we support different user names see above.
 
-        user_exists = False
-        # use case if User doesn't exist, then create
+        created = False
+
         if not shift.user_exists(user_name):
-            result = shift.create_user(user_name, full_name)
-            if result.status_code not in (200, 201):
-                return Response(
-                    response=json.dumps(
-                        {"msg": f"unable to create openshift user ({user_name}) 1"}
-                    ),
-                    status=400,
-                    mimetype="application/json",
-                )
-        else:
-            user_exists = True
+            created = True
+            shift.create_user(user_name, full_name)
 
-        identity_exists = False
-        # if identity doesn't exist then create
         if not shift.identity_exists(id_user):
-            result = shift.create_identity(id_user)
-            if result.status_code not in (200, 201):
-                return Response(
-                    response=json.dumps({"msg": "unable to create openshift identity"}),
-                    status=400,
-                    mimetype="application/json",
-                )
-        else:
-            identity_exists = True
+            created = True
+            shift.create_identity(id_user)
 
-        # creates the useridenitymapping
-        user_identity_mapping_exists = False
         if not shift.useridentitymapping_exists(user_name, id_user):
-            result = shift.create_useridentitymapping(user_name, id_user)
-            if result.status_code not in (200, 201):
-                return Response(
-                    response=json.dumps(
-                        {
-                            "msg": f"unable to create openshift user identity mapping ({user_name})"
-                        }
-                    ),
-                    status=400,
-                    mimetype="application/json",
-                )
-        else:
-            user_identity_mapping_exists = True
+            created = True
+            shift.create_useridentitymapping(user_name, id_user)
 
-        if user_exists and identity_exists and user_identity_mapping_exists:
-            return Response(
-                response=json.dumps({"msg": f"user already exists ({user_name})"}),
-                status=200,
-                mimetype="application/json",
-            )
-        return Response(
-            response=json.dumps({"msg": f"user created ({user_name})"}),
-            status=200,
-            mimetype="application/json",
-        )
+        if created:
+            return make_response({"msg": f"user created ({user_name})"})
+        return make_response({"msg": f"user already exists ({user_name})"}, 400)
 
     @APP.route("/users/<user_name>", methods=["DELETE"])
     @AUTH.login_required
     def delete_moc_user(user_name):
-        if user_exists := shift.user_exists(user_name):
-            result = shift.delete_user(user_name)
-            if result.status_code not in (200, 201):
-                return Response(
-                    response=json.dumps(
-                        {"msg": f"unable to delete user ({user_name}) 1"}
-                    ),
-                    status=400,
-                    mimetype="application/json",
-                )
+        if shift.user_exists(user_name):
+            shift.delete_user(user_name)
 
-        if identity_exists := shift.identity_exists(user_name):
-            result = shift.delete_identity(user_name)
-            if result.status_code not in (200, 201):
-                return Response(
-                    response=json.dumps(
-                        {"msg": f"unable to delete identity for ({user_name})"}
-                    ),
-                    status=400,
-                    mimetype="application/json",
-                )
+        if shift.identity_exists(user_name):
+            shift.delete_identity(user_name)
 
-        if not (user_exists and identity_exists):
-            return Response(
-                response=json.dumps({"msg": f"user does not exist ({user_name})"}),
-                status=200,
-                mimetype="application/json",
-            )
         return Response(
             response=json.dumps({"msg": f"user deleted ({user_name})"}),
             status=200,

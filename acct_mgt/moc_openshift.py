@@ -1,17 +1,21 @@
 """API wrapper for interacting with OpenShift authorization"""
-# pylint: disable=too-many-public-methods
 import json
 import re
 import sys
 import time
 
-from flask import Response
+import kubernetes.dynamic.exceptions as kexc
 
-from . import exceptions
+from flask import Response
 
 OPENSHIFT_ROLES = ["admin", "edit", "view"]
 
+API_PROJECT = "project.openshift.io/v1"
+API_USER = "user.openshift.io/v1"
+API_RBAC = "rbac.authorization.k8s.io/v1"
+API_CORE = "v1"
 
+# pylint: disable=too-many-public-methods
 class MocOpenShift4x:
     """API implementation for OpenShift 4.x"""
 
@@ -32,51 +36,51 @@ class MocOpenShift4x:
         suggested_project_name = re.sub("[^A-Za-z0-9-]+", "-", suggested_project_name)
         return suggested_project_name
 
-    def __init__(self, client, app):
+    def __init__(self, client, logger, config):
         self.client = client
-        self.app = app
-        self.logger = app.logger
-        self.id_provider = app.config["IDENTITY_PROVIDER"]
-        self.quotafile = app.config["QUOTA_DEF_FILE"]
-        self.limitfile = app.config["LIMIT_DEF_FILE"]
+        self.logger = logger
+        self.id_provider = config["IDENTITY_PROVIDER"]
+        self.quotafile = config["QUOTA_DEF_FILE"]
+        self.limitfile = config["LIMIT_DEF_FILE"]
+        self.apis = {}
 
         if not self.limitfile:
             self.logger.error("No default limit file provided.")
             sys.exit(1)
 
-    def user_exists(self, user_name):
-        result = self.get_user(user_name)
-        if result.status_code in (200, 201):
-            return True
-        return False
+    def get_resource_api(self, api_version: str, kind: str):
+        """Either return the cached resource api from self.apis, or fetch a
+        new one, store it in self.apis, and return it."""
+        k = f"{api_version}:{kind}"
+        api = self.apis.setdefault(
+            k, self.client.resources.get(api_version=api_version, kind=kind)
+        )
+        return api
 
     def useridentitymapping_exists(self, user_name, id_user):
-        user = self.get_user(user_name)
-        id_provider = self.id_provider
-        if not (user.status_code in (200, 201)) and user["identities"]:
-            id_str = f"{id_provider}:{id_user}"
-            for identity in user["identities"]:
-                if identity == id_str:
-                    return True
-        return False
+        try:
+            user = self.get_user(user_name)
+        except kexc.NotFoundError:
+            return False
+
+        return any(
+            identity == self.qualified_id_user(id_user)
+            for identity in user.get("identities", [])
+        )
 
     def user_rolebinding_exists(self, user_name, project_name, role):
         if role not in OPENSHIFT_ROLES:
             return False
 
-        result = self.get_rolebindings(project_name, role)
-        if result.status_code in (200, 201):
-            role_binding = result.json()
-            self.logger.info(
-                f"rolebinding result:\n{json.dumps(role_binding, indent=2)}"
-            )
-            users_in_role = [
-                u["name"]
-                for u in role_binding.get("subjects", {})
-                if u["kind"] == "User"
-            ]
-            return user_name in users_in_role
-        return False
+        try:
+            result = self.get_rolebindings(project_name, role)
+        except kexc.NotFoundError:
+            return False
+
+        return any(
+            (subject["kind"] == "User" and subject["name"] == user_name)
+            for subject in result["subjects"]
+        )
 
     def update_user_role_project(
         self, project_name, user, role, operation
@@ -218,7 +222,7 @@ class MocOpenShift4x:
             role_binding["subjects"] = [
                 {"name": name, "kind": "User"} for name in users_in_role
             ]
-            result = self.update_rolebindings(project_name, role, role_binding)
+            result = self.update_rolebindings(project_name, role_binding)
 
             msg = "unknown message"
             if result.status_code in (200, 201):
@@ -264,20 +268,9 @@ class MocOpenShift4x:
             f"New Quota for project {project_name}: {json.dumps(new_quota, indent=2)}"
         )
 
-        delete_resp = self.delete_moc_quota(project_name)
-        if delete_resp.status_code not in [200, 201]:
-            return Response(
-                response="Unable to delete current quotas in {project_name}\n {delete_resp.status}",
-                status=delete_resp.status_code,
-                mimetype="application/json",
-            )
-        create_resp = self.create_shift_quotas(project_name, quota_def)
-        if create_resp.status_code not in [200, 201]:
-            return Response(
-                response="Unable to define Quotas",
-                status=400,
-                mimetype="application/json",
-            )
+        self.delete_moc_quota(project_name)
+        self.create_shift_quotas(project_name, quota_def)
+
         return Response(
             response="MOC Quotas Updated",
             status=200,
@@ -297,131 +290,140 @@ class MocOpenShift4x:
         with open(self.limitfile, "r") as file:
             return json.load(file)
 
-    # member functions for projects
+    def get_project(self, project_name):
+        api = self.get_resource_api(API_PROJECT, "Project")
+        return api.get(name=project_name).to_dict()
+
     def project_exists(self, project_name):
-        url = f"/apis/project.openshift.io/v1/projects/{project_name}"
-        result = self.client.get(url)
-        if result.status_code in (200, 201):
-            return True
-        return False
+        try:
+            self.get_project(project_name)
+        except kexc.NotFoundError:
+            return False
+        return True
 
     def create_project(self, project_name, display_name, user_name, annotations=None):
-        # check project_name
         if annotations is None:
             annotations = {}
         else:
             annotations = dict(annotations)
-        url = "/apis/project.openshift.io/v1/projects/"
-        annotations["openshift.io/display-name"] = display_name
-        annotations["openshift.io/requester"] = user_name
-        payload = {
-            "kind": "Project",
-            "apiVersion": "project.openshift.io/v1",
-            "metadata": {"name": project_name, "annotations": annotations},
+
+        api = self.get_resource_api(API_PROJECT, "Project")
+
+        annotations.update(
+            {
+                "openshift.io/display-name": display_name,
+                "openshift.io/requester": user_name,
+            }
+        )
+        labels = {
+            "nerc.mghpcc.org/project": "true",
         }
-        r = self.client.post(url, json=payload)
-        if r.status_code not in [200, 201]:
-            raise exceptions.ApiException(f"unable to create project ({project_name})")
+        payload = {
+            "metadata": {
+                "name": project_name,
+                "annotations": annotations,
+                "labels": labels,
+            },
+        }
+        res = api.create(body=payload).to_dict()
         self.create_limits(project_name)
-        return r
+        return res
 
     def delete_project(self, project_name):
-        # check project_name
-        url = f"/apis/project.openshift.io/v1/projects/{project_name}"
-        return self.client.delete(url)
+        api = self.get_resource_api(API_PROJECT, "Project")
+        return api.delete(name=project_name).to_dict()
 
     def get_user(self, user_name):
-        url = f"/apis/user.openshift.io/v1/users/{user_name}"
-        return self.client.get(url)
+        api = self.get_resource_api(API_USER, "User")
+        return api.get(name=user_name).to_dict()
 
-    # member functions for users
+    def user_exists(self, user_name):
+        try:
+            self.get_user(user_name)
+        except kexc.NotFoundError:
+            return False
+        return True
+
     def create_user(self, user_name, full_name):
-        url = "/apis/user.openshift.io/v1/users"
+        api = self.get_resource_api(API_USER, "User")
         payload = {
-            "kind": "User",
-            "apiVersion": "user.openshift.io/v1",
             "metadata": {"name": user_name},
             "fullName": full_name,
         }
-        return self.client.post(url, json=payload)
+        return api.create(body=payload).to_dict()
 
     def delete_user(self, user_name):
-        url = f"/apis/user.openshift.io/v1/users/{user_name}"
-        return self.client.delete(url)
+        api = self.get_resource_api(API_USER, "User")
+        return api.delete(name=user_name).to_dict()
 
-    # member functions for identities
+    def qualified_id_user(self, id_user):
+        return f"{self.id_provider}:{id_user}"
+
+    def get_identity(self, id_user):
+        api = self.get_resource_api(API_USER, "Identity")
+        return api.get(name=self.qualified_id_user(id_user)).to_dict()
+
     def identity_exists(self, id_user):
-        url = f"/apis/user.openshift.io/v1/identities/{self.id_provider}:{id_user}"
-        result = self.client.get(url)
-        if result.status_code in (200, 201):
-            return True
-        return False
+        try:
+            self.get_identity(id_user)
+        except kexc.NotFoundError:
+            return False
+        return True
 
     def create_identity(self, id_user):
-        url = "/apis/user.openshift.io/v1/identities"
+        api = self.get_resource_api(API_USER, "Identity")
+
         payload = {
-            "kind": "Identity",
-            "apiVersion": "user.openshift.io/v1",
             "providerName": self.id_provider,
             "providerUserName": id_user,
         }
-        return self.client.post(url, json=payload)
+        return api.create(body=payload).to_dict()
 
     def delete_identity(self, id_user):
-        url = f"/apis/user.openshift.io/v1/identities/{self.id_provider}:{id_user}"
-        return self.client.delete(url)
+        api = self.get_resource_api(API_USER, "Identity")
+        return api.delete(name=self.qualified_id_user(id_user)).to_dict()
 
     def create_useridentitymapping(self, user_name, id_user):
-        url = "/apis/user.openshift.io/v1/useridentitymappings"
+        api = self.get_resource_api(API_USER, "UserIdentityMapping")
         payload = {
-            "kind": "UserIdentityMapping",
-            "apiVersion": "user.openshift.io/v1",
             "user": {"name": user_name},
-            "identity": {"name": self.id_provider + ":" + id_user},
+            "identity": {"name": self.qualified_id_user(id_user)},
         }
-        return self.client.post(url, json=payload)
+        return api.create(body=payload).to_dict()
 
     # member functions to associate roles for users on projects
     def get_rolebindings(self, project_name, role):
-        url = f"/apis/rbac.authorization.k8s.io/v1/namespaces/{project_name}/rolebindings/{role}"
-        result = self.client.get(url)
-        self.logger.warning("get rolebindings: " + result.text)
-        return result
+        api = self.get_resource_api(API_RBAC, "RoleBinding")
+        res = api.get(namespace=project_name, name=role).to_dict()
+
+        # Ensure that rbd["subjects"] is a list (it can be None if the
+        # rolebinding object had no subjects).
+        if not res.get("subjects"):
+            res["subjects"] = []
+
+        return res
 
     def list_rolebindings(self, project_name):
-        url = (
-            f"/apis/rbac.authorization.k8s.io/v1/namespaces/{project_name}/rolebindings"
-        )
-        result = self.client.get(url)
-        return result
+        api = self.get_resource_api(API_RBAC, "RoleBinding")
+        try:
+            res = api.get(namespace=project_name).to_dict()
+        except kexc.NotFoundError:
+            return []
+
+        return res["items"]
 
     def create_rolebindings(self, project_name, user_name, role):
-        url = (
-            f"/apis/rbac.authorization.k8s.io/v1/namespaces/{project_name}/rolebindings"
-        )
+        api = self.get_resource_api(API_RBAC, "RoleBinding")
         payload = {
-            "kind": "RoleBinding",
-            "apiVersion": "rbac.authorization.k8s.io/v1",
             "metadata": {"name": role, "namespace": project_name},
             "subjects": [{"name": user_name, "kind": "User"}],
             "roleRef": {"name": role, "kind": "ClusterRole"},
         }
-        return self.client.post(url, json=payload)
+        return api.create(body=payload, namespace=project_name).to_dict()
 
-    def update_rolebindings(self, project_name, role, rolebindings_json):
-        url = f"/apis/rbac.authorization.k8s.io/v1/namespaces/{project_name}/rolebindings/{role}"
-        # need to eliminate some fields that might be there
-        payload = {}
-        for key in rolebindings_json:
-            if key in ["kind", "apiVersion", "subjects", "roleRef"]:
-                payload[key] = rolebindings_json[key]
-        payload["metadata"] = {}
-        self.logger.debug("payload -> 1: " + json.dumps(payload))
-        for key in rolebindings_json["metadata"]:
-            if key in ["name", "namespace"]:
-                payload["metadata"][key] = rolebindings_json["metadata"][key]
-        self.logger.debug("payload -> 2: " + json.dumps(payload))
-        return self.client.put(url, json=payload)
+    def update_rolebindings(self, project_name, rolebinding):
+        api = self.get_resource_api(API_RBAC, "RoleBinding")
+        return api.patch(body=rolebinding, namespace=project_name).to_dict()
 
     def get_moc_quota(self, project_name):
         quota_from_project = self.get_moc_quota_from_resourcequotas(project_name)
@@ -439,7 +441,7 @@ class MocOpenShift4x:
         }
         return quota_object
 
-    def wait_for_quota_to_settle(self, project_name, resource_quota_json):
+    def wait_for_quota_to_settle(self, project_name, resource_quota):
         """Wait for quota on resourcequotas to settle.
 
         When creating a new resourcequota that sets a quota on resourcequota objects, we need to
@@ -447,12 +449,15 @@ class MocOpenShift4x:
         resourcequota objects.
         """
 
-        if "resourcequotas" in resource_quota_json["spec"]["hard"]:
+        if "resourcequotas" in resource_quota["spec"]["hard"]:
             self.logger.info("waiting for resourcequota quota")
-            url = f"/api/v1/namespaces/{project_name}/resourcequotas/{resource_quota_json['metadata']['name']}"
+
+            api = self.get_resource_api(API_CORE, "ResourceQuota")
             while True:
-                resp = self.client.get(url)
-                if "resourcequotas" in resp.json()["status"].get("used", {}):
+                resp = api.get(
+                    namespace=project_name, name=resource_quota["metadata"]["name"]
+                ).to_dict()
+                if "resourcequotas" in resp["status"].get("used", {}):
                     break
                 time.sleep(0.1)
 
@@ -464,96 +469,71 @@ class MocOpenShift4x:
             if scope not in quota_def:
                 quota_def[scope] = {}
             quota_def[scope][quota_name] = quota_spec[mangled_quota_name]
-        # create the openshift quota resources
-        quota_create_status_code = 200
-        quota_create_msg = ""
+
         for scope, quota_item in quota_def.items():
-            resource_quota_json = {
-                "apiVersion": "v1",
-                "kind": "ResourceQuota",
+            resource_quota = {
                 "metadata": {"name": f"{project_name.lower()}-{scope.lower()}"},
                 "spec": {"hard": {}},
             }
+
             if scope != "Project":
-                resource_quota_json["spec"]["scopes"] = [scope]
-            non_null_quota_count = 0
-            for quota_name in quota_item:
-                if quota_item[quota_name]["value"] is not None:
-                    non_null_quota_count += 1
-                    resource_quota_json["spec"]["hard"][quota_name] = quota_item[
-                        quota_name
-                    ]["value"]
-            if non_null_quota_count > 0:
-                url = f"/api/v1/namespaces/{project_name}/resourcequotas"
-                resp = self.client.post(url, json=resource_quota_json)
-                # This colapses 5 error codes to the most sever error and just contcatenates the 5 messages
-                if resp.status_code in [200, 201]:
-                    self.wait_for_quota_to_settle(project_name, resource_quota_json)
-                    quota_create_msg = f"{quota_create_msg} Quota {project_name}/{quota_name} successfully created\n"
-                else:
-                    if resp.status_code > quota_create_status_code:
-                        quota_create_status_code = resp.status_code
-                    self.logger.error(
-                        f"Quota creation for {project_name} with error: {str(resp.json())}"
-                    )
-                    quota_create_msg = f"{quota_create_msg} Quota {project_name}/{quota_name} creation failed"
-            # if the 5 calls were successful, we can be less verbose
-            if quota_create_status_code in [200, 201]:
-                quota_create_msg = f"All quota from {project_name} successfully created"
+                resource_quota["spec"]["scopes"] = [scope]
+
+            resource_quota["spec"]["hard"] = {
+                quota_name: quota_item[quota_name]["value"]
+                for quota_name in quota_item
+                if quota_item[quota_name]["value"] is not None
+            }
+
+            if resource_quota["spec"]["hard"]:
+                api = self.get_resource_api(API_CORE, "ResourceQuota")
+                res = api.create(namespace=project_name, body=resource_quota).to_dict()
+                self.wait_for_quota_to_settle(project_name, res)
+
         return Response(
-            response=quota_create_msg,
-            status=quota_create_status_code,
+            response=json.dumps(
+                {"msg": f"All quota from {project_name} successfully created"}
+            ),
+            status=200,
             mimetype="application/json",
         )
 
-    def get_resourcequotas(self, project_name) -> list:
-        """Returns a dictionary of all of the resourcequota objects"""
-        url = f"/api/v1/namespaces/{project_name}/resourcequotas"
-        rq_data = self.client.get(url).json()
-        self.logger.info(json.dumps(rq_data, indent=2))
-        rq_list = []
-        for rq_name in rq_data["items"]:
-            rq_list.append(rq_name["metadata"]["name"])
-        return rq_list
+    def get_resourcequotas(self, project_name):
+        """Returns a list of all of the resourcequota objects"""
+        api = self.get_resource_api(API_CORE, "ResourceQuota")
+        res = api.get(namespace=project_name).to_dict()
 
-    def delete_quota(self, project_name, resourcequota_name):
+        return res["items"]
+
+    def delete_resourcequota(self, project_name, resourcequota_name):
         """In an openshift namespace {project_name) delete a specified resourcequota"""
-        url = f"/api/v1/namespaces/{project_name}/resourcequotas/{resourcequota_name}"
-        return self.client.delete(url)
+        api = self.get_resource_api(API_CORE, "ResourceQuota")
+        return api.delete(namespace=project_name, name=resourcequota_name).to_dict()
 
     def delete_moc_quota(self, project_name):
         """deletes all resourcequotas from an openshift project"""
-        resourcequota_list = self.get_resourcequotas(project_name)
-        delete_msg = ""
-        delete_status_code = 200
-        for resourcequota in resourcequota_list:
-            resp = self.delete_quota(project_name, resourcequota)
-            # This colapses 5 error codes to the most sever error and just contcatenates the 5 messages
-            if resp.status_code in [200, 201]:
-                delete_msg = f"{delete_msg} Quota {project_name}/{resourcequota} successfully deleted\n"
-            else:
-                if resp.status_code > delete_status_code:
-                    delete_status_code = resp.status_code
-                delete_msg = (
-                    f"{delete_msg} Quota {project_name}/{resourcequota} deletion failed"
-                )
-        # if the 5 calls were successful, we can be less verbose
-        if delete_status_code in [200, 201]:
-            delete_msg = f"All quota from {project_name} successfully deleted"
+        resourcequotas = self.get_resourcequotas(project_name)
+        for resourcequota in resourcequotas:
+            self.delete_resourcequota(project_name, resourcequota["metadata"]["name"])
+
         return Response(
-            response=delete_msg,
-            status=delete_status_code,
+            response=json.dumps(
+                {"msg": f"All quotas from {project_name} successfully deleted"}
+            ),
+            status=200,
             mimetype="application/json",
         )
 
-    def get_moc_quota_from_resourcequotas(self, project_name) -> dict:
-        """This returns a dictionary suitable for merging in with the specification from Adjutant/ColdFront"""
-        rq_data = self.get_resourcequota_details(project_name)
-        # url = f"{self.get_url()}/api/v1/namespaces/{project_name}/resourcequotas"
-        # rq_data = self.get_request(url, True)
+    def get_moc_quota_from_resourcequotas(self, project_name):
+        """This returns a dictionary suitable for merging in with the
+        specification from Adjutant/ColdFront"""
+        resourcequotas = self.get_resourcequotas(project_name)
         moc_quota = {}
-        for rq_name, rq_spec in rq_data.items():
-            self.logger.info(f"processing resourcequota: {project_name}:{rq_name}")
+        for rq in resourcequotas:
+            rq_spec = rq["spec"]
+            self.logger.info(
+                f"processing resourcequota: {project_name}:{rq['metadata']['name']}"
+            )
             scope_list = ["Project"]
             if "scopes" in rq_spec:
                 scope_list = rq_spec["scopes"]
@@ -569,38 +549,17 @@ class MocOpenShift4x:
                         # quotas as it is setup by default.
                         if moc_quota_name not in moc_quota:
                             moc_quota[moc_quota_name] = quota_value
-        self.logger.info("get moc_quota_from_resourceQuotas")
-        self.logger.info(json.dumps(moc_quota, indent=2))
         return moc_quota
 
-    def get_resourcequota_details(self, project_name) -> dict:
-        """Returns a list of resourcequota names in the spcified project"""
-        url = f"/api/v1/namespaces/{project_name}/resourcequotas"
-        rq_data = self.client.get(url).json()
-        self.logger.info(f"get_resourcequota_details: {json.dumps(rq_data, indent=2)}")
-
-        rq_dict = {}
-        if rq_data["kind"] == "ResourceQuotaList":
-            for rq_info in rq_data["items"]:
-                rq_dict[rq_info["metadata"]["name"]] = rq_info["spec"]
-        return rq_dict
-
-    def create_limits(self, namespace, limits=None):
+    def create_limits(self, project_name, limits=None):
         """
-        namespace: namespace to create LimitRange
+        project_name: project_name in which to create LimitRange
         limits: dictionary of limits to create, or None for default
         """
-        url = f"/api/v1/namespaces/{namespace}/limitranges"
+        api = self.get_resource_api(API_CORE, "LimitRange")
 
         payload = {
-            "apiVersion": "v1",
-            "kind": "LimitRange",
-            "metadata": {"name": f"{namespace.lower()}-limits"},
+            "metadata": {"name": f"{project_name.lower()}-limits"},
             "spec": {"limits": limits or self.get_limit_definitions()},
         }
-        r = self.client.post(url, json=payload)
-        if r.status_code not in [200, 201]:
-            raise exceptions.ApiException(
-                f"Unable to create default limits on project {namespace}."
-            )
-        return r
+        return api.create(body=payload, namespace=project_name).to_dict()
