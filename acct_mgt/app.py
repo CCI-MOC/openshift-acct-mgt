@@ -75,21 +75,20 @@ def create_app(**config):
     @APP.errorhandler(exceptions.ApiException)
     def handle_acct_mgt_errors(error):
         msg = error.message if error.visible else "Internal Server Error"
+        APP.logger.error(msg)
         return make_response({"msg": msg}, error.status_code)
 
     @APP.errorhandler(kexc.DynamicApiError)
     def handle_openshift_api_errors(error):
-        return make_response(
-            {"msg": f"Unexpected response from OpenShift API: {error.summary()}"},
-            400,
-        )
+        msg = f"Unexpected response from OpenShift API: {error.summary()}"
+        APP.logger.error(msg)
+        return make_response({"msg": msg}, 400)
 
     @APP.errorhandler(ValueError)
     def handle_value_errors(error):
-        return make_response(
-            {"msg": f"Invalid value in input: {error}"},
-            400,
-        )
+        msg = f"Invalid value in input: {error}"
+        APP.logger.error(msg)
+        return make_response({"msg": msg}, 400)
 
     @APP.route(
         "/users/<user_name>/projects/<project_name>/roles/<role>", methods=["GET"]
