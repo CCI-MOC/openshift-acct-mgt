@@ -4,7 +4,6 @@ import pytest
 from .conftest import oc
 
 
-@pytest.mark.xfail(reason="bug")
 def test_project_quota_project_notfound(session):
     """Test that a request for the quota of a project that does not exist fails
     as expected"""

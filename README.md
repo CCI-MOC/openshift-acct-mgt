@@ -74,6 +74,7 @@ The endpoint is protected using HTTP Basic Auth.
             oc adm policy -n <project-name> rm-role-from-user <admin|edit|view> <user-name>
 
 ## Configuration Options
+
 The following configuration options are accepted
 
 * **ACCT_MGT_ADMIN_USERNAME**
@@ -98,6 +99,7 @@ The following configuration options are accepted
   * **Default**: quotas.json
 
 ## Build
+
 The recommended method to build and test changes is using Microshift.
 Running `./ci/setup.sh` is going to deploy a Microshift container
 and build and deploy the application using the k8s manifests on
@@ -108,6 +110,7 @@ and build and deploy the application using the k8s manifests on
 ```
 
 ## Running Tests
+
 To run the tests (both functional tests and unit tests), make sure to have an
 environment with the necessary dependencies installed.
 
@@ -121,6 +124,7 @@ pip install -r requirements.txt -r test-requirements.txt
 ```
 
 ### Running Functional Tests
+
 Functional tests require a working OpenShift cluster. We do not recommend
 running them on a production cluster as they do not perform cleanup.
 
@@ -140,37 +144,26 @@ pytest tests/unit -v --cov=acct_mgt --cov-report=term
 
 ## Running the service locally
 
-It is possible to run the application outside an OpenShift cluster.
+It is possible to run the application outside an OpenShift cluster. You must be authenticated to OpenShift with the command line tools (`kubectl` or `oc`).
 
-You will need to make sure you are authenticated to OpenShift (when
-run locally, we use `oc whoami -t` to get an authentication token).
-
-The following environment variables need to be set:
+First, create an appropriate configuration in your environment. For example, put something like this in your `.env` file. For example:
 
 ```
-OPENSHIFT_URL=$(oc whoami --show-server)
-ACCT_MGT_IDENTITY_PROVIDER=developer
+ACCT_MGT_IDENTITY_PROVIDER=moc-testing
+ACCT_MGT_ADMIN_USERNAME=admin
 ACCT_MGT_ADMIN_PASSWORD=pass
 ```
 
-Then start the server up with:
+Then run the application:
 
 ```
-ACCT_MGT_AUTH_TOKEN=$(oc whoami -t) \
-flask run -p 8080
+flask --app acct_mgt.wsgi:APP run
 ```
 
-Or alternately:
-
-```
-ACCT_MGT_AUTH_TOKEN=$(oc whoami -t) \
-gunicorn -b 127.0.0.1:8080 -c config.py wsgi:APP
-```
-
-This will expose the microservice on http://127.0.0.1:8080. You can
+This will expose the microservice on http://127.0.0.1:5000. You can
 access it like this:
 
 ```
-$ curl -u admin:pass  http://localhost:8080/users/test-user
+$ curl -u admin:pass  http://localhost:5000/users/test-user
 {"msg": "user (test-user) does not exist"}
 ```

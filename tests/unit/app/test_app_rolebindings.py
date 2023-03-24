@@ -1,5 +1,4 @@
 # pylint: disable=missing-module-docstring
-from .conftest import fake_200_response, fake_400_response
 
 
 def test_get_moc_rolebindings_exists(moc, client):
@@ -17,34 +16,24 @@ def test_get_moc_rolebindings_not_exists(moc, client):
 
 
 def test_create_moc_rolebindings(moc, client):
-    moc.update_user_role_project.return_value = fake_200_response
+    moc.add_user_to_role.return_value = {}
     res = client.put("/users/test-user/projects/test-project/roles/admin")
     assert res.status_code == 200
-    moc.update_user_role_project.assert_called_with(
-        "test-project", "test-user", "admin", "add"
-    )
-    assert b"it worked" in res.data
 
 
 def test_create_moc_rolebindings_fails(moc, client):
-    moc.update_user_role_project.return_value = fake_400_response
+    moc.add_user_to_role.side_effect = ValueError("dummy error")
     res = client.put("/users/test-user/projects/test-project/roles/admin")
     assert res.status_code == 400
-    assert b"it failed" in res.data
 
 
 def test_delete_moc_rolebindings_exists(moc, client):
-    moc.update_user_role_project.return_value = fake_200_response
+    moc.remove_user_from_role.return_value = {}
     res = client.delete("/users/test-user/projects/test-project/roles/admin")
     assert res.status_code == 200
-    moc.update_user_role_project.assert_called_with(
-        "test-project", "test-user", "admin", "del"
-    )
-    assert b"it worked" in res.data
 
 
 def test_delete_moc_rolebindings_fails(moc, client):
-    moc.update_user_role_project.return_value = fake_400_response
+    moc.remove_user_from_role.side_effect = ValueError("dummy error")
     res = client.delete("/users/test-user/projects/test-project/roles/admin")
     assert res.status_code == 400
-    assert b"it failed" in res.data
