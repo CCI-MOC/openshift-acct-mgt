@@ -229,4 +229,9 @@ def create_app(**config):
     def delete_quota(project):
         return shift.delete_moc_quota(project)
 
+    @APP.route("/projects/<project>/users", methods=["GET"])
+    @AUTH.login_required
+    def get_users_in_project(project):
+        return shift.get_users_in_project(project)
+
     return APP
