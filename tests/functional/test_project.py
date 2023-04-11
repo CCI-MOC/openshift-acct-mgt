@@ -96,6 +96,35 @@ def test_get_project_exists(session, a_project):
     )
 
 
+def test_get_project_users(session, a_project):
+    """Test that we can list users associated with a project"""
+
+    # create 2 test users
+    username1 = "test-user-alice"
+    username2 = "test-user-bob"
+    res = session.put(f"/users/{username1}")
+    assert res.status_code == 200
+    res = session.put(f"/users/{username2}")
+    assert res.status_code == 200
+
+    # add users to the project
+    res = session.put(f"/users/{username1}/projects/{a_project}/roles/view")
+    assert res.status_code == 200
+    res = session.put(f"/users/{username2}/projects/{a_project}/roles/view")
+    assert res.status_code == 200
+
+    # check that we can retrieve the users from this project
+    res = session.get(f"/projects/{a_project}/users")
+    assert res.status_code == 200
+    assert res.content == b'["test-user-alice","test-user-bob"]\n'
+
+    # Delete the users
+    res = session.delete(f"/users/{username1}")
+    assert res.status_code == 200
+    res = session.delete(f"/users/{username2}")
+    assert res.status_code == 200
+
+
 def test_delete_project_notfound(session):
     """Test that an attempt to delete a project that does not exist succeeds as expected"""
     res = session.delete("/projects/does-not-exist")
