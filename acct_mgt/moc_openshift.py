@@ -413,22 +413,23 @@ class MocOpenShift4x:
         """
         Returns a list of users that have a role in a given project/namespace
         """
+        # Raise a NotFound error if the project doesn't exist
         self.get_project(project_name)
 
-        users = []
+        users = set()
+        role_binding_list = []
 
-        api = self.get_resource_api(API_RBAC, "RoleBinding")
+        for role in OPENSHIFT_ROLES:
+            try:
+                role_binding_list.append(self.get_rolebindings(project_name, role))
+            except kexc.NotFoundError:
+                continue
 
-        try:
-            role_binding_list = api.get(namespace=project_name)
-        except kexc.NotFoundError:
-            return users
+        for role_binding in role_binding_list:
+            users.update(
+                subject["name"]
+                for subject in role_binding["subjects"]
+                if subject["kind"] == "User"
+            )
 
-        for role_binding in role_binding_list.items:
-            subjects = role_binding.subjects
-
-            for subject in subjects:
-                if subject.kind == "User" and subject.name not in users:
-                    users.append(subject.name)
-
-        return users
+        return list(users)
