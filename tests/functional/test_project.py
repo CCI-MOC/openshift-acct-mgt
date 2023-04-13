@@ -96,12 +96,12 @@ def test_get_project_exists(session, a_project):
     )
 
 
-def test_get_project_users(session, a_project):
+def test_get_project_users(session, a_project, suffix):
     """Test that we can list users associated with a project"""
 
     # create 2 test users
-    username1 = "test-user-alice"
-    username2 = "test-user-bob"
+    username1 = f"test-user-alice-{suffix}"
+    username2 = f"test-user-bob-{suffix}"
     res = session.put(f"/users/{username1}")
     assert res.status_code == 200
     res = session.put(f"/users/{username2}")
@@ -116,7 +116,7 @@ def test_get_project_users(session, a_project):
     # check that we can retrieve the users from this project
     res = session.get(f"/projects/{a_project}/users")
     assert res.status_code == 200
-    assert res.content == b'["test-user-alice","test-user-bob"]\n'
+    assert set(json.loads(res.content)) == set([username1, username2])
 
     # Delete the users
     res = session.delete(f"/users/{username1}")
