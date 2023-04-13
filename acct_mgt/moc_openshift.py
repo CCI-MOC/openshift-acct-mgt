@@ -408,3 +408,28 @@ class MocOpenShift4x:
             "spec": {"limits": limits or self.get_limit_definitions()},
         }
         return api.create(body=payload, namespace=project_name).to_dict()
+
+    def get_users_in_project(self, project_name):
+        """
+        Returns a list of users that have a role in a given project/namespace
+        """
+        # Raise a NotFound error if the project doesn't exist
+        self.get_project(project_name)
+
+        users = set()
+        role_binding_list = []
+
+        for role in OPENSHIFT_ROLES:
+            try:
+                role_binding_list.append(self.get_rolebindings(project_name, role))
+            except kexc.NotFoundError:
+                continue
+
+        for role_binding in role_binding_list:
+            users.update(
+                subject["name"]
+                for subject in role_binding["subjects"]
+                if subject["kind"] == "User"
+            )
+
+        return list(users)
