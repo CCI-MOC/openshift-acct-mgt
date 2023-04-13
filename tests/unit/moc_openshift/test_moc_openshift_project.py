@@ -1,6 +1,8 @@
 # pylint: disable=missing-module-docstring
 from unittest import mock
 
+import pytest
+
 import kubernetes.dynamic.exceptions as kexc
 
 
@@ -45,3 +47,60 @@ def test_create_project(moc):
 def test_delete_project(moc):
     moc.delete_project("fake-project")
     moc.client.resources.get.return_value.delete.assert_called_with(name="fake-project")
+
+
+def test_get_users_in_project_with_nonexistent_project(moc):
+    moc.client.resources.get.return_value.get.side_effect = kexc.NotFoundError(
+        mock.Mock()
+    )
+
+    with pytest.raises(kexc.NotFoundError):
+        moc.get_users_in_project("nonexistent_project")
+
+
+def test_get_users_in_project_with_no_rolebindings(moc):
+    dummy_project = {"name": "project1"}
+    moc.get_project = mock.Mock(return_value=dummy_project)
+
+    moc.get_rolebindings = mock.Mock(side_effect=kexc.NotFoundError(mock.Mock()))
+
+    users = moc.get_users_in_project("project1")
+
+    assert users == []
+
+
+def test_get_users_in_project_with_project_with_one_rolebinding(moc):
+    dummy_project = {"name": "project1"}
+    moc.get_project = mock.Mock(return_value=dummy_project)
+
+    # pylint: disable=unused-argument
+    def get_rolebindings_side_effect(project_name, role):
+        if role == "view":
+            return {"role": "view", "subjects": [{"kind": "User", "name": "viewer"}]}
+        raise kexc.NotFoundError(mock.Mock())
+
+    moc.get_rolebindings = mock.Mock(side_effect=get_rolebindings_side_effect)
+
+    users = moc.get_users_in_project("project1")
+
+    assert users == ["viewer"]
+
+
+def test_get_users_in_project_with_multiple_rolebindings(moc):
+    dummy_project = {"name": "project1"}
+    moc.get_project = mock.Mock(return_value=dummy_project)
+
+    # pylint: disable=unused-argument
+    def get_rolebindings_side_effect(project_name, role):
+        if role in ["admin", "view", "edit"]:
+            return {
+                "role": role,
+                "subjects": [{"kind": "User", "name": f"{role}-user"}],
+            }
+        raise ValueError(role)
+
+    moc.get_rolebindings = mock.Mock(side_effect=get_rolebindings_side_effect)
+
+    users = moc.get_users_in_project("project1")
+
+    assert set(users) == set(["view-user", "admin-user", "edit-user"])
