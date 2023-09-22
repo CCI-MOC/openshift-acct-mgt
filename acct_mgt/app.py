@@ -147,9 +147,14 @@ def create_app(**config):
         payload = request.get_json(silent=True) or {}
         display_name = payload.pop("displayName", project_name)
         annotations = payload.pop("annotations", {})
+        labels = payload.pop("labels", {})
 
         shift.create_project(
-            project_name, display_name, user_name, annotations=annotations
+            project_name,
+            display_name,
+            user_name,
+            annotations=annotations,
+            labels=labels,
         )
         return {"msg": f"project created ({project_name})"}
 

@@ -168,7 +168,10 @@ class MocOpenShift4x:
             return False
         return True
 
-    def create_project(self, project_name, display_name, user_name, annotations=None):
+    # pylint: disable-msg=too-many-arguments
+    def create_project(
+        self, project_name, display_name, user_name, annotations=None, labels=None
+    ):
         if annotations is None:
             annotations = {}
         else:
@@ -182,9 +185,17 @@ class MocOpenShift4x:
                 "openshift.io/requester": user_name,
             }
         )
-        labels = {
+
+        _nerc_project_label = {
             "nerc.mghpcc.org/project": "true",
         }
+
+        if labels is None:
+            labels = _nerc_project_label
+        else:
+            labels = dict(labels)
+            labels.update(_nerc_project_label)
+
         payload = {
             "metadata": {
                 "name": project_name,
@@ -195,6 +206,8 @@ class MocOpenShift4x:
         res = api.create(body=payload).to_dict()
         self.create_limits(project_name)
         return res
+
+    # pylint: enable-msg=too-many-arguments
 
     def delete_project(self, project_name):
         api = self.get_resource_api(API_PROJECT, "Project")
