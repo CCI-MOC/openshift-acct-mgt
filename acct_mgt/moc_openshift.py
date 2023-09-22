@@ -168,7 +168,8 @@ class MocOpenShift4x:
             return False
         return True
 
-    def create_project(self, project_name, display_name, user_name, annotations=None):
+    def create_project(self, project_name, display_name, user_name,
+                       annotations=None, labels=None):
         if annotations is None:
             annotations = {}
         else:
@@ -182,9 +183,17 @@ class MocOpenShift4x:
                 "openshift.io/requester": user_name,
             }
         )
-        labels = {
+
+        _nerc_project_label = {
             "nerc.mghpcc.org/project": "true",
         }
+
+        if labels is None:
+            labels = _nerc_project_label
+        else:
+            labels = dict(labels)
+            labels.update(_nerc_project_label)
+
         payload = {
             "metadata": {
                 "name": project_name,
