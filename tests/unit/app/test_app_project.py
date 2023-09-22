@@ -33,7 +33,7 @@ def test_create_moc_project_no_display_name(moc, client):
     res = client.put("/projects/test-project")
     assert res.status_code == 200
     moc.create_project.assert_called_with(
-        "test-project", "test-project", None, annotations={}
+        "test-project", "test-project", None, annotations={}, labels={}
     )
 
 
@@ -48,7 +48,7 @@ def test_create_moc_project_with_display_name(moc, client):
     )
     assert res.status_code == 200
     moc.create_project.assert_called_with(
-        "test-project", "Test Project", None, annotations={}
+        "test-project", "Test Project", None, annotations={}, labels={}
     )
 
 
@@ -64,7 +64,23 @@ def test_create_moc_project_with_annotations(moc, client):
     )
     assert res.status_code == 200
     moc.create_project.assert_called_with(
-        "test-project", "test-project", None, annotations=annotations
+        "test-project", "test-project", None, annotations=annotations, labels={}
+    )
+
+
+def test_create_moc_project_with_labels(moc, client):
+    moc.cnvt_project_name.return_value = "test-project"
+    moc.project_exists.return_value = False
+    moc.create_project.return_value = {}
+    labels = {"opendatahub.io/dashboard": True}
+    res = client.put(
+        "/projects/test-project",
+        data=json.dumps({"labels": labels}),
+        content_type="application/json",
+    )
+    assert res.status_code == 200
+    moc.create_project.assert_called_with(
+        "test-project", "test-project", None, annotations={}, labels=labels
     )
 
 

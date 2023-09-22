@@ -168,8 +168,10 @@ class MocOpenShift4x:
             return False
         return True
 
-    def create_project(self, project_name, display_name, user_name,
-                       annotations=None, labels=None):
+    # pylint: disable-msg=too-many-arguments
+    def create_project(
+        self, project_name, display_name, user_name, annotations=None, labels=None
+    ):
         if annotations is None:
             annotations = {}
         else:
@@ -204,6 +206,8 @@ class MocOpenShift4x:
         res = api.create(body=payload).to_dict()
         self.create_limits(project_name)
         return res
+
+    # pylint: enable-msg=too-many-arguments
 
     def delete_project(self, project_name):
         api = self.get_resource_api(API_PROJECT, "Project")
