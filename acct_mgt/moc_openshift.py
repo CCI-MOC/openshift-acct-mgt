@@ -12,6 +12,20 @@ API_PROJECT = "project.openshift.io/v1"
 API_USER = "user.openshift.io/v1"
 API_RBAC = "rbac.authorization.k8s.io/v1"
 API_CORE = "v1"
+IGNORED_ATTRIBUTES = [
+    "resourceVersion",
+    "creationTimestamp",
+    "uid",
+]
+
+
+def clean_openshift_metadata(obj):
+    if "metadata" in obj:
+        for attr in IGNORED_ATTRIBUTES:
+            if attr in obj["metadata"]:
+                del obj["metadata"][attr]
+
+    return obj
 
 
 # pylint: disable=too-many-public-methods
@@ -159,7 +173,7 @@ class MocOpenShift4x:
 
     def get_project(self, project_name):
         api = self.get_resource_api(API_PROJECT, "Project")
-        return api.get(name=project_name).to_dict()
+        return clean_openshift_metadata(api.get(name=project_name).to_dict())
 
     def project_exists(self, project_name):
         try:
@@ -215,7 +229,7 @@ class MocOpenShift4x:
 
     def get_user(self, user_name):
         api = self.get_resource_api(API_USER, "User")
-        return api.get(name=user_name).to_dict()
+        return clean_openshift_metadata(api.get(name=user_name).to_dict())
 
     def user_exists(self, user_name):
         try:
@@ -241,7 +255,9 @@ class MocOpenShift4x:
 
     def get_identity(self, id_user):
         api = self.get_resource_api(API_USER, "Identity")
-        return api.get(name=self.qualified_id_user(id_user)).to_dict()
+        return clean_openshift_metadata(
+            api.get(name=self.qualified_id_user(id_user)).to_dict()
+        )
 
     def identity_exists(self, id_user):
         try:
@@ -274,7 +290,9 @@ class MocOpenShift4x:
     # member functions to associate roles for users on projects
     def get_rolebindings(self, project_name, role):
         api = self.get_resource_api(API_RBAC, "RoleBinding")
-        res = api.get(namespace=project_name, name=role).to_dict()
+        res = clean_openshift_metadata(
+            api.get(namespace=project_name, name=role).to_dict()
+        )
 
         # Ensure that rbd["subjects"] is a list (it can be None if the
         # rolebinding object had no subjects).
@@ -286,7 +304,7 @@ class MocOpenShift4x:
     def list_rolebindings(self, project_name):
         api = self.get_resource_api(API_RBAC, "RoleBinding")
         try:
-            res = api.get(namespace=project_name).to_dict()
+            res = clean_openshift_metadata(api.get(namespace=project_name).to_dict())
         except kexc.NotFoundError:
             return []
 
@@ -334,9 +352,11 @@ class MocOpenShift4x:
 
             api = self.get_resource_api(API_CORE, "ResourceQuota")
             while True:
-                resp = api.get(
-                    namespace=project_name, name=resource_quota["metadata"]["name"]
-                ).to_dict()
+                resp = clean_openshift_metadata(
+                    api.get(
+                        namespace=project_name, name=resource_quota["metadata"]["name"]
+                    ).to_dict()
+                )
                 if "resourcequotas" in resp["status"].get("used", {}):
                     break
                 time.sleep(0.1)
@@ -377,7 +397,7 @@ class MocOpenShift4x:
         self.get_project(project_name)
 
         api = self.get_resource_api(API_CORE, "ResourceQuota")
-        res = api.get(namespace=project_name).to_dict()
+        res = clean_openshift_metadata(api.get(namespace=project_name).to_dict())
 
         return res["items"]
 
