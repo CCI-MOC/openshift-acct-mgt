@@ -15,7 +15,8 @@ def test_get_project(moc):
 
 
 def test_project_exists(moc):
-    fake_project = mock.Mock(spec=["to_dict"])
+    fake_project = mock.Mock()
+    fake_project.to_dict.return_value = {}
     moc.client.resources.get.return_value.get.return_value = fake_project
     assert moc.project_exists("fake-project")
 
