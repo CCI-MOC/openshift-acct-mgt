@@ -22,7 +22,7 @@ spec:
               name: onboarding-credentials
           - configMapRef:
               name: onboarding-config
-        image: "localhost:5000/cci-moc/openshift-acct-mgt:latest"
+        image: "ghcr.io/cci-moc/openshift-acct-mgt:v0.3.4"
         imagePullPolicy: Always
         ports:
           - name: http
