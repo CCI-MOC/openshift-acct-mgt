@@ -10,6 +10,10 @@
             "cpu": "1",
             "memory": "512Mi",
             "nvidia.com/gpu": "0"
+        },
+        "min": {
+            "cpu": "125m",
+            "memory": "256Mi"
         }
     }
 ]
