@@ -183,6 +183,7 @@ class MocOpenShift4x:
         return True
 
     # pylint: disable-msg=too-many-arguments
+    # pylint: disable-msg=too-many-positional-arguments
     def create_project(
         self, project_name, display_name, user_name, annotations=None, labels=None
     ):
