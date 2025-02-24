@@ -7,6 +7,8 @@
 ":limits.storage":                { "base": 2, "coefficient": 0, "units": "Gi" },
 ":requests.ephemeral-storage":    { "base": 2, "coefficient": 8, "units": "Gi" },
 ":requests.nvidia.com/gpu":       { "base": 0, "coefficient": 0 },
+":requests.nvidia.com/A100_SXM4_40GB":      { "base": 0, "coefficient": 0 },
+":requests.nvidia.com/GV100GL_Tesla_V100":  { "base": 0, "coefficient": 0 },
 ":limits.ephemeral-storage":      { "base": 2, "coefficient": 8, "units": "Gi" },
 ":persistentvolumeclaims":        { "base": 2, "coefficient": 0 },
 ":replicationcontrollers":        { "base": 2, "coefficient": 0 },
